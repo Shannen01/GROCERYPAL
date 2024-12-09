@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUserImage } from '../hooks/useUserImage';
 import userIcon from '../assets/user.png';
 import searchIcon from '../assets/search.png';
 import fruitsIcon from '../assets/Fruits.png';
@@ -20,10 +21,37 @@ import powerIcon from '../assets/power.png';
 import BottomNavBar from '../components/BottomNavBar';
 
 const HomeScreen = () => {
-  const [userName] = useState('Shannen');
+  const userImage = useUserImage();
+  const [userName, setUserName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Get user info from localStorage
+    const loadUserInfo = () => {
+      const userInfo = localStorage.getItem('userInfo');
+      console.log('LoadUserInfo - Raw localStorage:', userInfo);
+
+      if (userInfo) {
+        try {
+          const user = JSON.parse(userInfo);
+          console.log('LoadUserInfo - Parsed user:', user);
+
+          setUserName(user.name);
+          setUserEmail(user.email);
+        } catch (error) {
+          console.error('Error parsing user info:', error);
+        }
+      } else {
+        // If no user info, redirect to login
+        navigate('/login', { replace: true });
+      }
+    };
+
+    loadUserInfo();
+  }, [navigate]);
 
   const handleLogout = () => {
     // Clear authentication data
@@ -87,14 +115,18 @@ const HomeScreen = () => {
                   <div className="flex items-center gap-2">
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
                       <img 
-                        src={userIcon} 
+                        src={userImage} 
                         alt="Profile" 
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          console.log('Image load error:', e);
+                          e.target.src = userIcon;
+                        }}
                       />
                     </div>
                     <div>
-                      <h3 className="text-sm font-semibold text-black">Shannen</h3>
-                      <p className="text-xs text-gray-600">shannenmendoza@gmail.com</p>
+                      <h3 className="text-sm font-semibold text-black">{userName}</h3>
+                      <p className="text-xs text-gray-600">{userEmail}</p>
                     </div>
                   </div>
                   <button 
@@ -156,9 +188,9 @@ const HomeScreen = () => {
             onClick={() => setIsSidebarOpen(true)}
           >
             <img 
-              src={userIcon} 
+              src={userImage} 
               alt="Profile" 
-              className="w-8 h-8 object-contain"
+              className="profile-image-circle"
             />
           </div>
         </div>

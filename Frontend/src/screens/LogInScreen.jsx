@@ -46,8 +46,7 @@ const LogInScreen = () => {
         password: cleanPassword
       });
 
-      const { data } = response;
-      const { success, token, user } = data;
+      const { success, token, user } = response.data;
 
       if (success && token && user) {
         // Store auth data
@@ -72,42 +71,10 @@ const LogInScreen = () => {
       }
     } catch (error) {
       console.error('Login error:', error);
-      
-      let errorMessage = 'Login Failed';
-      let subMessage = 'Please try again';
-
-      if (error.response) {
-        const { status, data } = error.response;
-
-        switch (status) {
-          case 400:
-            errorMessage = 'Invalid Input';
-            subMessage = data.message || 'Please check your input';
-            break;
-          case 401:
-            errorMessage = 'Invalid Credentials';
-            subMessage = 'Please check your email and password';
-            break;
-          case 429:
-            errorMessage = 'Too Many Attempts';
-            subMessage = 'Please try again later';
-            break;
-          case 500:
-            errorMessage = 'Server Error';
-            subMessage = 'Please try again later';
-            break;
-          default:
-            subMessage = data?.message || 'An unexpected error occurred';
-        }
-      } else if (error.request) {
-        errorMessage = 'Network Error';
-        subMessage = 'Please check your internet connection';
-      }
-
       setToast({
         type: 'error',
-        message: errorMessage,
-        subMessage: subMessage
+        message: 'Login Failed',
+        subMessage: error.response?.data?.message || 'Please try again later'
       });
     } finally {
       setIsLoading(false);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import defaultUserImage from '../assets/user.png';
-import axios from 'axios';
+import axios from '../utils/axios';  // Use our custom axios instance
 import Toast from '../components/Toast';
 
 const CameraIcon = () => (
@@ -27,18 +27,29 @@ const CameraIcon = () => (
   </svg>
 );
 
-const ProfileImageModal = ({ onClose, currentImage }) => {
+const ProfileImageModal = ({ onClose, currentImage, onImageUpload }) => {
   const [selectedImage, setSelectedImage] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setSelectedFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
+        setPreviewUrl(reader.result);
         setSelectedImage(reader.result);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleSave = () => {
+    if (selectedFile) {
+      onImageUpload(selectedFile);
+    }
+    onClose();
   };
 
   return (
@@ -52,41 +63,50 @@ const ProfileImageModal = ({ onClose, currentImage }) => {
 
         <div className="mb-6">
           <div className="relative w-40 h-40 mx-auto border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center overflow-hidden">
+            {/* Preview Image */}
             {selectedImage ? (
-              <img src={selectedImage} alt="Preview" className="w-full h-full object-cover" />
-            ) : currentImage ? (
-              <img src={currentImage} alt="Current" className="w-full h-full object-cover" />
-            ) : (
-              <div className="text-gray-400 text-center">
-                <span className="text-4xl">+</span>
-                <p className="text-sm">Upload Image</p>
-              </div>
-            )}
-            <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-20 transition-all flex items-center justify-center">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="absolute inset-0 opacity-0 cursor-pointer"
+              <img 
+                src={previewUrl} 
+                alt="Preview" 
+                className="w-full h-full object-cover"
               />
-              <div className="text-white opacity-0 hover:opacity-100 transition-all">
-                <span className="text-4xl">+</span>
-                <p className="text-sm">Change Photo</p>
-              </div>
+            ) : (
+              <img 
+                src={currentImage} 
+                alt="Current" 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.src = defaultUserImage;
+                }}
+              />
+            )}
+            
+            {/* Upload Overlay */}
+            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageChange}
+                />
+                <CameraIcon />
+              </label>
             </div>
           </div>
         </div>
 
+        {/* Action Buttons */}
         <div className="flex gap-4">
           <button 
-            className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-lg"
+            className="flex-1 py-3 bg-white text-[#D62929] rounded-lg border border-[#D62929]"
             onClick={onClose}
           >
             Cancel
           </button>
           <button 
             className="flex-1 py-3 bg-[#E4A76F] text-white rounded-lg"
-            onClick={onClose}
+            onClick={handleSave}
           >
             Save
           </button>
@@ -98,177 +118,202 @@ const ProfileImageModal = ({ onClose, currentImage }) => {
 
 const ProfileScreen = () => {
   const navigate = useNavigate();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [profileImage, setProfileImage] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
   const [toast, setToast] = useState(null);
+  const [profile, setProfile] = useState({
+    name: '',
+    email: '',
+    image: null
+  });
+  const [editedProfile, setEditedProfile] = useState({
+    name: '',
+    email: ''
+  });
 
   useEffect(() => {
-    loadUserProfile();
-  }, []);
-
-  const loadUserProfile = async () => {
-    try {
-      const userInfo = localStorage.getItem('userInfo');
-      const token = localStorage.getItem('userToken');
-      
-      if (userInfo && token) {
-        const user = JSON.parse(userInfo);
-        setName(user.name);
-        setEmail(user.email);
-        setProfileImage(user.profileImage || defaultUserImage);
-
-        // Fetch latest user data
-        const response = await axios.get('http://localhost:3000/api/profile', {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (response.data) {
-          const updatedUser = response.data;
-          setName(updatedUser.name);
-          setEmail(updatedUser.email);
-          setProfileImage(updatedUser.profileImage || defaultUserImage);
-
-          // Update localStorage
-          localStorage.setItem('userInfo', JSON.stringify(updatedUser));
-        }
-      }
-    } catch (error) {
-      console.error('Error loading profile:', error);
-      if (localStorage.getItem('userToken')) {
-        setToast({
-          type: 'error',
-          message: 'Error loading profile',
-          subMessage: 'Please try logging in again',
-          actionLabel: 'Dismiss'
-        });
-      }
-    }
-  };
-
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
+    const fetchProfile = async () => {
       try {
-        const formData = new FormData();
-        formData.append('image', file);
-
-        const token = localStorage.getItem('userToken');
-        if (!token) {
-          throw new Error('No authentication token found');
-        }
-        
-        // Upload the image
-        const uploadResponse = await axios.post(
-          'http://localhost:3000/api/upload',
-          formData,
-          {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-              Authorization: `Bearer ${token}`
-            }
-          }
-        );
-
-        if (uploadResponse.data.imageUrl) {
-          // Update profile with new image URL
-          const updateResponse = await axios.put(
-            'http://localhost:3000/api/profile',
-            { profileImage: uploadResponse.data.imageUrl },
-            {
-              headers: { 
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-
-          if (updateResponse.data) {
-            // Update state and localStorage
-            setProfileImage(uploadResponse.data.imageUrl);
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-            userInfo.profileImage = uploadResponse.data.imageUrl;
-            localStorage.setItem('userInfo', JSON.stringify(userInfo));
-
-            // Update HomeScreen image immediately
-            const event = new CustomEvent('profileImageUpdated', {
-              detail: { profileImage: uploadResponse.data.imageUrl }
-            });
-            window.dispatchEvent(event);
-
-            setToast({
-              type: 'success',
-              message: 'Profile picture updated',
-              subMessage: 'Your profile picture has been updated successfully',
-              actionLabel: 'Dismiss'
-            });
-          }
+        const response = await axios.get('/api/profile');
+        if (response.data.success) {
+          const userData = response.data.user;
+          setProfile({
+            ...userData,
+            image: userData.image ? `${import.meta.env.VITE_API_URL}${userData.image}` : null
+          });
+          setEditedProfile({
+            name: userData.name,
+            email: userData.email
+          });
         }
       } catch (error) {
-        console.error('Error uploading image:', error);
+        console.error('Error fetching profile:', error);
         setToast({
           type: 'error',
-          message: 'Error updating profile picture',
-          subMessage: error.response?.data?.message || 'Please try again later',
-          actionLabel: 'Try again'
+          message: 'Error',
+          subMessage: 'Failed to load profile'
         });
       }
+    };
+
+    fetchProfile();
+
+    // Listen for image updates
+    const handleImageUpdate = (e) => {
+      if (e.detail && e.detail.imageUrl) {
+        setProfile({
+          ...profile,
+          image: e.detail.imageUrl
+        });
+      }
+    };
+
+    window.addEventListener('userImageUpdated', handleImageUpdate);
+
+    return () => {
+      window.removeEventListener('userImageUpdated', handleImageUpdate);
+    };
+  }, []);
+
+  const handleEditToggle = () => {
+    if (isEditing) {
+      // Cancel editing - reset to original values
+      setEditedProfile({
+        name: profile.name,
+        email: profile.email
+      });
     }
+    setIsEditing(!isEditing);
   };
 
   const handleSave = async () => {
     try {
-      const token = localStorage.getItem('userToken');
-      const response = await axios.put(
-        'http://localhost:3000/api/profile',
-        { name, email, profileImage },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const response = await axios.put('/api/profile', editedProfile);
+      const { success, user } = response.data;
 
-      if (response.data) {
-        // Update localStorage
-        const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-        userInfo.name = name;
-        userInfo.email = email;
-        userInfo.profileImage = profileImage;
-        localStorage.setItem('userInfo', JSON.stringify(userInfo));
-
-        // Update HomeScreen image
-        const event = new CustomEvent('profileImageUpdated', {
-          detail: { profileImage }
-        });
-        window.dispatchEvent(event);
-
-        setToast({
-          type: 'success',
-          message: 'Profile updated',
-          subMessage: 'Your profile has been updated successfully',
-          actionLabel: 'Dismiss'
+      if (success && user) {
+        setProfile({
+          ...profile,
+          name: user.name,
+          email: user.email
         });
         setIsEditing(false);
+        setToast({
+          type: 'success',
+          message: 'Profile Updated',
+          subMessage: 'Your changes have been saved'
+        });
       }
     } catch (error) {
-      console.error('Error saving profile:', error);
+      console.error('Error updating profile:', error);
       setToast({
         type: 'error',
-        message: 'Error updating profile',
-        subMessage: error.response?.data?.message || 'Please try again later',
-        actionLabel: 'Try again'
+        message: 'Update Failed',
+        subMessage: error.response?.data?.message || 'Please try again later'
       });
     }
   };
 
-  const handleEditToggle = () => {
-    setIsEditing(!isEditing);
+  const handleImageUpload = async (file) => {
+    try {
+      // Validate file before upload
+      const validImageTypes = ['image/jpeg', 'image/png', 'image/gif'];
+      const maxFileSize = 5 * 1024 * 1024; // 5MB
+
+      if (!validImageTypes.includes(file.type)) {
+        setToast({
+          type: 'error',
+          message: 'Invalid File Type',
+          subMessage: 'Only JPEG, PNG, and GIF images are allowed'
+        });
+        return;
+      }
+
+      if (file.size > maxFileSize) {
+        setToast({
+          type: 'error',
+          message: 'File Too Large',
+          subMessage: 'Image must be less than 5MB'
+        });
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('image', file);
+
+      console.log('Uploading image:', file);
+
+      const response = await axios.post('/api/profile/upload-image', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      const { success, imageUrl, message } = response.data;
+
+      console.log('Image Upload Response:', { success, imageUrl, message });
+
+      if (success && imageUrl) {
+        const fullImageUrl = `${import.meta.env.VITE_API_URL}${imageUrl}`;
+
+        console.log('Full Image URL:', fullImageUrl);
+
+        // Update profile state
+        setProfile({
+          ...profile,
+          image: fullImageUrl
+        });
+
+        // Update localStorage with new image URL
+        const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+        console.log('Existing User Info:', userInfo);
+
+        // Update the entire user info object
+        userInfo.image = imageUrl;  // Store relative path
+        localStorage.setItem('userInfo', JSON.stringify(userInfo));
+
+        console.log('Updated User Info in localStorage:', 
+          JSON.parse(localStorage.getItem('userInfo'))
+        );
+
+        setShowImageModal(false);
+        setToast({
+          type: 'success',
+          message: 'Image Updated',
+          subMessage: message || 'Your profile picture has been updated'
+        });
+
+        // Force a reload of the user's image in other components
+        console.log('Dispatching userImageUpdated event');
+        window.dispatchEvent(new CustomEvent('userImageUpdated', { 
+          detail: { 
+            imageUrl: fullImageUrl,
+            userId: userInfo._id
+          } 
+        }));
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      
+      // Handle different types of errors
+      const errorResponse = error.response?.data || {};
+      const errorMessage = errorResponse.message || 'Upload Failed';
+      const errorDetails = errorResponse.details || {};
+
+      setToast({
+        type: 'error',
+        message: 'Upload Failed',
+        subMessage: errorMessage,
+        additionalInfo: JSON.stringify(errorDetails)
+      });
+
+      // Log detailed error information
+      console.error('Detailed Upload Error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        headers: error.response?.headers
+      });
+    }
   };
 
   return (
@@ -302,8 +347,8 @@ const ProfileScreen = () => {
               <label className="text-sm text-gray-600 mb-1 block">Full name</label>
               <input 
                 type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={editedProfile.name}
+                onChange={(e) => setEditedProfile({ ...editedProfile, name: e.target.value })}
                 className={`w-full p-2 rounded-lg ${isEditing ? 'bg-white border border-gray-300' : 'bg-[#FFE5E5]'}`}
                 readOnly={!isEditing}
               />
@@ -313,8 +358,8 @@ const ProfileScreen = () => {
               <label className="text-sm text-gray-600 mb-1 block">Email</label>
               <input 
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={editedProfile.email}
+                onChange={(e) => setEditedProfile({ ...editedProfile, email: e.target.value })}
                 className={`w-full p-2 rounded-lg ${isEditing ? 'bg-white border border-gray-300' : 'bg-[#FFE5E5]'}`}
                 readOnly={!isEditing}
               />
@@ -357,7 +402,7 @@ const ProfileScreen = () => {
               {isEditing ? (
                 <div className="flex gap-4">
                   <button 
-                    onClick={() => setIsEditing(false)}
+                    onClick={handleEditToggle}
                     className="flex-1 py-3 bg-white text-[#D62929] rounded-lg border border-[#D62929]"
                   >
                     CANCEL
@@ -386,7 +431,7 @@ const ProfileScreen = () => {
           <div className="relative group">
             <div className="relative w-32 h-32 rounded-full border-2 border-white shadow-md">
               <img 
-                src={profileImage} 
+                src={profile.image || defaultUserImage} 
                 alt="Profile" 
                 className="w-full h-full object-cover rounded-full"
                 onError={(e) => {
@@ -397,13 +442,7 @@ const ProfileScreen = () => {
               {/* Edit Icon Circle */}
               <div 
                 className="absolute bottom-0 right-0 w-8 h-8 bg-[#D62929] rounded-full flex items-center justify-center cursor-pointer border-2 border-white"
-                onClick={() => {
-                  const input = document.createElement('input');
-                  input.type = 'file';
-                  input.accept = 'image/*';
-                  input.onchange = handleImageUpload;
-                  input.click();
-                }}
+                onClick={() => setShowImageModal(true)}
               >
                 <CameraIcon className="w-4 h-4 text-white" />
               </div>
@@ -411,6 +450,14 @@ const ProfileScreen = () => {
           </div>
         </div>
       </div>
+
+      {showImageModal && (
+        <ProfileImageModal 
+          onClose={() => setShowImageModal(false)} 
+          currentImage={profile.image} 
+          onImageUpload={handleImageUpload} 
+        />
+      )}
 
       {/* Toast */}
       {toast && (

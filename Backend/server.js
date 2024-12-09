@@ -2,9 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const connectDB = require('./config/db');
 const cors = require('cors');
+const path = require('path');
 const authRoutes = require('./routes/authRoutes');
 const listRoutes = require('./routes/listRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
+const profileRoutes = require('./routes/profileRoutes');
 
 const app = express();
 let server;
@@ -24,16 +26,30 @@ app.use((req, res, next) => {
 // Middleware
 app.use(express.json());
 
+// Create uploads directory if it doesn't exist
+const fs = require('fs');
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/lists', listRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/profile', profileRoutes);
 
 // Connect to database
 connectDB()
-    .then(() => console.log('✅ Connected to MongoDB'))
-    .catch(err => {
-        console.error('❌ MongoDB connection error:', err);
+    .then(() => {
+        console.log('Connected to MongoDB successfully');
+        console.log('✅ Connected to MongoDB');
+    })
+    .catch((error) => {
+        console.error('❌ MongoDB connection error:', error);
         process.exit(1);
     });
 

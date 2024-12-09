@@ -1,0 +1,14 @@
+@font-face {
+    font-family: 'YourFontName';
+    src: url('../fonts/ADLaMDisplay-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+  
+  /* If you have different weights, add them like this */
+  @font-face {
+    font-family: 'YourFontName';
+    src: url('../fonts/ADLaMDisplay-Regular.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+  }

@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import axios from '../utils/axios';  // Import our axios instance
 import Toast from '../components/Toast';
 import logo from '../assets/PantryPal.png';
 import wavingHand from '../assets/Waving Hand Emoji.png';
@@ -11,13 +10,19 @@ const LogInScreen = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState(null);
-  const [error, setError] = useState(null);
   const navigate = useNavigate();
+
+  // Check if user is already logged in
+  useEffect(() => {
+    const token = localStorage.getItem('userToken');
+    if (token) {
+      navigate('/home', { replace: true });
+    }
+  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setError(null);
 
     try {
       // Validate input
@@ -27,6 +32,7 @@ const LogInScreen = () => {
           message: 'Missing Information',
           subMessage: 'Please enter both email and password'
         });
+        setIsLoading(false);
         return;
       }
 
@@ -34,31 +40,41 @@ const LogInScreen = () => {
       const cleanEmail = email.trim().toLowerCase();
       const cleanPassword = password.trim();
 
-      const response = await axios.post('http://localhost:3000/api/auth/login', {
+      // Login request
+      const response = await axios.post('/api/auth/login', {
         email: cleanEmail,
         password: cleanPassword
       });
 
-      if (response.data.success) {
+      const { data } = response;
+      const { success, token, user } = data;
+
+      if (success && token && user) {
         // Store auth data
-        const { token, user } = response.data;
         localStorage.setItem('userToken', token);
         localStorage.setItem('userInfo', JSON.stringify(user));
 
+        // Show success toast
         setToast({
           type: 'success',
           message: 'Welcome back!',
           subMessage: `Logged in as ${user.name}`
         });
 
+        // Clear form
+        setEmail('');
+        setPassword('');
+
         // Navigate to home
-        navigate('/home');
+        navigate('/home', { replace: true });
+      } else {
+        throw new Error('Invalid response from server');
       }
     } catch (error) {
       console.error('Login error:', error);
       
-      let errorMessage = 'An unexpected error occurred';
-      let subMessage = 'Please try again later';
+      let errorMessage = 'Login Failed';
+      let subMessage = 'Please try again';
 
       if (error.response) {
         const { status, data } = error.response;
@@ -69,13 +85,8 @@ const LogInScreen = () => {
             subMessage = data.message || 'Please check your input';
             break;
           case 401:
-            if (data.message?.includes('locked')) {
-              errorMessage = 'Account Locked';
-              subMessage = data.message;
-            } else {
-              errorMessage = 'Invalid Credentials';
-              subMessage = 'Please check your email and password';
-            }
+            errorMessage = 'Invalid Credentials';
+            subMessage = 'Please check your email and password';
             break;
           case 429:
             errorMessage = 'Too Many Attempts';
@@ -86,8 +97,7 @@ const LogInScreen = () => {
             subMessage = 'Please try again later';
             break;
           default:
-            errorMessage = 'Login Failed';
-            subMessage = data.message || 'Please try again';
+            subMessage = data?.message || 'An unexpected error occurred';
         }
       } else if (error.request) {
         errorMessage = 'Network Error';
@@ -97,8 +107,7 @@ const LogInScreen = () => {
       setToast({
         type: 'error',
         message: errorMessage,
-        subMessage: subMessage,
-        actionLabel: 'Try Again'
+        subMessage: subMessage
       });
     } finally {
       setIsLoading(false);
@@ -116,7 +125,6 @@ const LogInScreen = () => {
           type={toast.type}
           message={toast.message}
           subMessage={toast.subMessage}
-          actionLabel={toast.actionLabel}
           onClose={() => setToast(null)}
         />
       )}

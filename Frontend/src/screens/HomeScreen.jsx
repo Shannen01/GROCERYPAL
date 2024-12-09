@@ -26,8 +26,15 @@ const HomeScreen = () => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    // Add logout logic here
-    navigate('/login');
+    // Clear authentication data
+    localStorage.removeItem('userToken');
+    localStorage.removeItem('userInfo');
+    
+    // Close sidebar
+    setIsSidebarOpen(false);
+    
+    // Navigate to login
+    navigate('/login', { replace: true });
   };
 
   const categories = [

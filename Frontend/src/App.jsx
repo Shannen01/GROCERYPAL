@@ -15,26 +15,32 @@ import OnboardingScreen from './screens/OnboardingScreen';
 import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
 import CreateNewPasswordScreen from './screens/CreateNewPasswordScreen';
 import CategoriesScreen from './screens/CategoriesScreen';
+import ProtectedRoute from './components/ProtectedRoute';
 
 const App = () => {
   return (
     <ToastProvider>
       <Router>
         <Routes>
+          {/* Public Routes */}
           <Route path="/" element={<StartScreen />} />
           <Route path="/welcome" element={<WelcomeScreen />} />
           <Route path="/onboarding" element={<OnboardingScreen />} />
           <Route path="/login" element={<LoginScreen />} />
           <Route path="/signup" element={<SignUpScreen />} />
-          <Route path="/home" element={<HomeScreen />} />
-          <Route path="/profile" element={<ProfileScreen />} />
-          <Route path="/list" element={<ListScreen />} />
-          <Route path="/list/create" element={<CreateListScreen />} />
-          <Route path="/notifications" element={<NotificationScreen />} />
-          <Route path="/list/:id" element={<ListDetailsScreen />} />
           <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
           <Route path="/create-new-password" element={<CreateNewPasswordScreen />} />
-          <Route path="/categories" element={<CategoriesScreen />} />
+
+          {/* Protected Routes */}
+          <Route path="/home" element={<ProtectedRoute><HomeScreen /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><ProfileScreen /></ProtectedRoute>} />
+          <Route path="/list" element={<ProtectedRoute><ListScreen /></ProtectedRoute>} />
+          <Route path="/list/create" element={<ProtectedRoute><CreateListScreen /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute><NotificationScreen /></ProtectedRoute>} />
+          <Route path="/list/:id" element={<ProtectedRoute><ListDetailsScreen /></ProtectedRoute>} />
+          <Route path="/categories" element={<ProtectedRoute><CategoriesScreen /></ProtectedRoute>} />
+          
+          {/* Fallback Route */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>

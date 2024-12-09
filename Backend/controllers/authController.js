@@ -1,4 +1,5 @@
 const User = require('../models/userModel');
+const jwt = require('jsonwebtoken'); // Added jwt import
 
 const registerUser = async (req, res) => {
     try {
@@ -72,17 +73,35 @@ const loginUser = async (req, res) => {
         const user = await User.findOne({ email });
         
         if (user && (await user.matchPassword(password))) {
+            // Generate JWT token
+            const token = jwt.sign(
+                { id: user._id },
+                process.env.JWT_SECRET || 'your-secret-key',
+                { expiresIn: '30d' }
+            );
+
             res.json({
-                _id: user._id,
-                name: user.name,
-                email: user.email,
-                isAdmin: user.isAdmin
+                success: true,
+                token,
+                user: {
+                    _id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    isAdmin: user.isAdmin
+                }
             });
         } else {
-            res.status(401).json({ message: 'Invalid email or password' });
+            res.status(401).json({ 
+                success: false,
+                message: 'Invalid email or password' 
+            });
         }
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Login error:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'An error occurred during login' 
+        });
     }
 };
 

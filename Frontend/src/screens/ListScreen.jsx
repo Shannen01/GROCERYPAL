@@ -4,11 +4,11 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import searchIcon from '../assets/search-interface.png';
 import BottomNavBar from '../components/BottomNavBar';
-import mascotImage from '../assets/mascot.jpg';
+
 
 const calculateProgress = (list) => {
   if (!list.items || list.items.length === 0) return 0;
-  const completedItems = list.items.filter(item => item.checked).length;
+  const completedItems = list.items.filter(item => item.isCompleted).length;
   return (completedItems / list.items.length) * 100;
 };
 
@@ -141,20 +141,24 @@ const ManageListModal = ({ onClose, list, onDelete }) => {
       });
       
       // Show success toast
-      toast.success('List deleted successfully');
-      
-      // Wait for toast to show before closing modal
-      setTimeout(() => {
-        if (onDelete) {
-          onDelete(list._id);
-        }
-        onClose();
-      }, 2000); // Wait for 2 seconds for toast to be visible
-      
+      toast.success('List deleted successfully', {
+        position: "top-center",
+        autoClose: 2000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+
+      // Update UI and close modal
+      if (onDelete) {
+        onDelete(list._id);
+      }
+      onClose();
+
     } catch (error) {
       console.error('Error deleting list:', error);
-      setError('Failed to delete list. Please try again.');
-      setTimeout(() => setError(null), 3000);
+      toast.error('Failed to delete list');
     }
   };
 
@@ -177,13 +181,6 @@ const ManageListModal = ({ onClose, list, onDelete }) => {
         )}
 
         <div className="space-y-4">
-          <button 
-            className="w-full flex items-center gap-3 py-2 hover:bg-gray-50"
-            onClick={() => {/* Add rename handler */}}
-          >
-            <span className="text-gray-400">✎</span>
-            <span>Rename</span>
-          </button>
           <button 
             className="w-full flex items-center gap-3 py-2 hover:bg-gray-50"
             onClick={(e) => {
@@ -233,6 +230,7 @@ const ManageListModal = ({ onClose, list, onDelete }) => {
 const AddListModal = ({ onClose, onSave }) => {
   const [title, setTitle] = useState('');
   const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -251,11 +249,33 @@ const AddListModal = ({ onClose, onSave }) => {
         }
       );
       
+      // Log extensive details
+      console.error('LIST CREATION DEBUG:', {
+        listId: response.data._id,
+        listName: response.data.name,
+        fullResponse: response.data
+      });
+
+      // Explicitly log before navigation
+      console.error('ATTEMPTING NAVIGATION TO ADD ITEMS SCREEN');
+
+      // Use window.location as a fallback
+      window.location.href = `/add-items-to-list?listId=${response.data._id}`;
+      
+      // Still keep navigate for potential React Router handling
+      navigate('/add-items-to-list', { 
+        state: { 
+          list: response.data,
+          debugSource: 'ListScreen AddListModal'
+        } 
+      });
+
       onSave(response.data);
       onClose();
+      
     } catch (err) {
+      console.error('FULL LIST CREATION ERROR:', err);
       setError('Failed to create list. Please try again.');
-      console.error('Error creating list:', err);
     }
   };
 
@@ -300,29 +320,31 @@ const ListScreen = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
 
+  const fetchLists = async () => {
+    try {
+      const token = localStorage.getItem('userToken');
+      const response = await axios.get('http://localhost:3000/api/lists', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      setLists(response.data);
+    } catch (error) {
+      console.error('Error fetching lists:', error);
+      setError('Failed to load lists');
+    }
+  };
+
+  // Fetch lists when component mounts
   useEffect(() => {
-    const fetchLists = async () => {
-      try {
-        const token = localStorage.getItem('userToken');
-        const response = await axios.get('http://localhost:3000/api/lists', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        setLists(response.data);
-      } catch (error) {
-        console.error('Error fetching lists:', error);
-        setError('Failed to load lists');
-      }
-    };
-
     fetchLists();
-  }, []);
+  }, [location.key]);
 
   const filteredLists = useMemo(() => {
     return lists.filter(list => 
-      list.name.toLowerCase().includes(searchQuery.toLowerCase())
+      list.title && list.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [lists, searchQuery]);
 
@@ -366,18 +388,63 @@ const ListScreen = () => {
             filteredLists.map((list) => (
               <div 
                 key={list._id}
-                className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4 shadow-sm"
-                onClick={() => navigate('/editlist', { state: { list } })}
+                className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm"
               >
-                <div className="w-12 h-12 rounded-lg bg-[#D62929]/10 flex items-center justify-center">
-                  <img 
-                    src="/src/assets/store.png" 
-                    alt="Store"
-                    className="w-8 h-8 object-contain"
-                  />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-base">{list.name}</h3>
+                <div className="flex items-center justify-between">
+                  <div 
+                    className="flex-1 cursor-pointer"
+                    onClick={() => navigate(`/add-items-to-list`, { 
+                      state: { list },
+                      search: `?listId=${list._id}`
+                    })}
+                  >
+                    {/* List Title */}
+                    <h3 className="font-semibold text-base mb-1">{list.title}</h3>
+                    
+                    {/* Progress Bar */}
+                    {list.items && list.items.length > 0 && (
+                      <div>
+                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                          <span>Progress</span>
+                          <span>
+                            {list.items.filter(item => item.isCompleted).length}/{list.items.length}
+                          </span>
+                        </div>
+                        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-[#D62929] transition-all duration-300 rounded-full"
+                            style={{ width: `${calculateProgress(list)}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Action Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedList(list);
+                      setShowManageModal(true);
+                    }}
+                    className="p-2 rounded-full hover:bg-gray-100 ml-4"
+                    title="Manage List"
+                  >
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      className="h-5 w-5 text-gray-600" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                      />
+                    </svg>
+                  </button>
                 </div>
               </div>
             ))

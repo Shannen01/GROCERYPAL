@@ -60,7 +60,7 @@ const ListDetailsScreen = () => {
           >
             ←
           </button>
-          <h1 className="text-xl font-medium">{list.name}</h1>
+          <h1 className="text-xl font-medium">{list.title}</h1>
           <div className="w-8"></div> {/* Spacer for alignment */}
         </div>
       </div>

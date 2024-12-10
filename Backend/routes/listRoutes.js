@@ -9,7 +9,8 @@ const {
   addItem,
   updateItem,
   deleteItem,
-  deleteList
+  deleteList,
+  getListItems
 } = require('../controllers/listController');
 const List = require('../models/listModel');
 
@@ -40,6 +41,29 @@ router.delete('/:id', protect, async (req, res) => {
 });
 
 // Item routes
+router.get('/:id/items', protect, async (req, res) => {
+  try {
+    const list = await List.findById(req.params.id);
+    
+    if (!list) {
+      return res.status(404).json({ message: 'List not found' });
+    }
+    
+    // Check if the list belongs to the current user
+    if (list.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to view this list' });
+    }
+    
+    // Return items or an empty array
+    res.json(list.items || []);
+  } catch (error) {
+    console.error('Error fetching list items:', error);
+    res.status(500).json({ 
+      message: 'Error fetching list items',
+      details: error.message
+    });
+  }
+});
 router.post('/:id/items', protect, addItem);
 router.put('/:id/items/:itemId', protect, updateItem);
 router.patch('/:id/items/:itemId', protect, async (req, res) => {

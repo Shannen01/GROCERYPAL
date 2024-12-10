@@ -3,18 +3,48 @@ const List = require('../models/listModel');
 // Create a new list
 const createList = async (req, res) => {
     try {
+        console.log('Create List Request:', {
+            body: req.body,
+            user: req.user ? req.user._id : 'No user found',
+            userEmail: req.user ? req.user.email : 'N/A'
+        });
+
         const { title, description, category, items } = req.body;
+
+        // Validate required fields
+        if (!title) {
+            return res.status(400).json({ 
+                message: 'List title is required',
+                details: 'Title cannot be empty'
+            });
+        }
+
+        // Check if user exists and is authenticated
+        if (!req.user) {
+            return res.status(401).json({ 
+                message: 'User not authenticated',
+                details: 'Please log in to create a list'
+            });
+        }
+
         const list = await List.create({
             title,
-            description,
+            description: description || '',
             category,
             items: items || [],
             user: req.user._id
         });
+
+        console.log('List created successfully:', list);
+
         res.status(201).json(list);
     } catch (error) {
         console.error('Error creating list:', error);
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ 
+            message: 'Failed to create list',
+            details: error.message,
+            stack: error.stack
+        });
     }
 };
 
@@ -27,7 +57,10 @@ const getLists = async (req, res) => {
         res.json(lists);
     } catch (error) {
         console.error('Error fetching lists:', error);
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ 
+            message: error.message,
+            details: error.stack  // Add more detailed error info
+        });
     }
 };
 
@@ -44,7 +77,10 @@ const getListById = async (req, res) => {
         res.json(list);
     } catch (error) {
         console.error('Error fetching list:', error);
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ 
+            message: error.message,
+            details: error.stack  // Add more detailed error info
+        });
     }
 };
 
@@ -69,7 +105,10 @@ const updateList = async (req, res) => {
         res.json(updatedList);
     } catch (error) {
         console.error('Error updating list:', error);
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ 
+            message: error.message,
+            details: error.stack  // Add more detailed error info
+        });
     }
 };
 
@@ -90,7 +129,10 @@ const addItem = async (req, res) => {
         res.json(updatedList);
     } catch (error) {
         console.error('Error adding item:', error);
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ 
+            message: error.message,
+            details: error.stack  // Add more detailed error info
+        });
     }
 };
 
@@ -120,7 +162,10 @@ const updateItem = async (req, res) => {
         res.json(updatedList);
     } catch (error) {
         console.error('Error updating item:', error);
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ 
+            message: error.message,
+            details: error.stack  // Add more detailed error info
+        });
     }
 };
 
@@ -140,7 +185,10 @@ const deleteItem = async (req, res) => {
         res.json(updatedList);
     } catch (error) {
         console.error('Error deleting item:', error);
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ 
+            message: error.message,
+            details: error.stack  // Add more detailed error info
+        });
     }
 };
 
@@ -159,7 +207,34 @@ const deleteList = async (req, res) => {
         res.json({ message: 'List deleted successfully' });
     } catch (error) {
         console.error('Error deleting list:', error);
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ 
+            message: error.message,
+            details: error.stack  // Add more detailed error info
+        });
+    }
+};
+
+// Get items for a specific list
+const getListItems = async (req, res) => {
+    try {
+        const list = await List.findById(req.params.id);
+        
+        if (!list) {
+            return res.status(404).json({ message: 'List not found' });
+        }
+        
+        // Check if the list belongs to the current user
+        if (list.user.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Not authorized to view this list' });
+        }
+        
+        res.json(list.items);
+    } catch (error) {
+        console.error('Error fetching list items:', error);
+        res.status(500).json({ 
+            message: 'Error fetching list items',
+            details: error.message
+        });
     }
 };
 
@@ -171,5 +246,6 @@ module.exports = {
     addItem,
     updateItem,
     deleteItem,
-    deleteList
+    deleteList,
+    getListItems
 };

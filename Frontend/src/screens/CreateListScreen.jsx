@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import Toast from '../components/Toast';
 
 const CreateListScreen = () => {
   const [listTitle, setListTitle] = useState('');
-  const [toast, setToast] = useState(null);
   const [existingLists, setExistingLists] = useState([]);
   const navigate = useNavigate();
 
@@ -31,14 +32,17 @@ const CreateListScreen = () => {
     const fetchLists = async () => {
       try {
         const token = localStorage.getItem('userToken');
+        console.log('Fetching lists with token:', token);
         const response = await axios.get('http://localhost:3000/api/lists', {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
+        console.log('Fetched lists:', response.data);
         setExistingLists(response.data);
       } catch (error) {
         console.error('Error fetching lists:', error);
+        console.error('Error details:', error.response?.data);
       }
     };
 
@@ -47,28 +51,39 @@ const CreateListScreen = () => {
 
   const handleCreate = async () => {
     const trimmedTitle = listTitle.trim();
-    if (!trimmedTitle) return;
-
-    // Check if list name already exists
-    const listExists = existingLists.some(list => 
-      list.name.toLowerCase() === trimmedTitle.toLowerCase()
-    );
-
-    if (listExists) {
-      setToast({
-        type: 'error',
-        message: 'List name already exists',
-        subMessage: 'Please choose a different name',
-        actionLabel: 'Okay'
-      });
+    if (!trimmedTitle) {
+      toast.error('Please enter a list name');
       return;
     }
 
     try {
       const token = localStorage.getItem('userToken');
+
+      // First, check for existing lists with similar names
+      const existingListsWithSameName = existingLists.filter(list => 
+        list.title.toLowerCase().startsWith(trimmedTitle.toLowerCase())
+      );
+
+      // Generate a unique name if necessary
+      let finalTitle = trimmedTitle;
+      if (existingListsWithSameName.length > 0) {
+        const suffixes = existingListsWithSameName
+          .map(list => {
+            const match = list.title.match(new RegExp(`^${trimmedTitle}\\s*(\\d*)$`, 'i'));
+            return match && match[1] ? parseInt(match[1]) : 1;
+          })
+          .filter(num => !isNaN(num));
+
+        const highestSuffix = Math.max(0, ...suffixes);
+        finalTitle = `${trimmedTitle} ${highestSuffix + 1}`;
+      }
+
+      // Create the list with the final title
       const response = await axios.post(
         'http://localhost:3000/api/lists',
-        { name: trimmedTitle },
+        { 
+          title: finalTitle,
+        },
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -77,34 +92,55 @@ const CreateListScreen = () => {
       );
 
       if (response.data) {
-        navigate('/list', { state: { newList: response.data } });
+        // Create a custom toast using the Toast component
+        const handleAddItems = () => {
+          toast.dismiss();
+          navigate('/add-items-to-list', { 
+            state: { 
+              list: response.data,
+              fromCreateList: true 
+            } 
+          });
+        };
+
+        toast(<Toast 
+          message="List Created Successfully" 
+          subMessage={existingListsWithSameName.length > 0 
+            ? `"${finalTitle}" is ready to use` 
+            : 'Your new list is ready to go'}
+          type="success"
+          actionLabel="Add Items"
+          onAction={handleAddItems}
+          onClose={() => toast.dismiss()}
+        />, {
+          position: "center",
+          autoClose: false,
+          hideProgressBar: true,
+          closeOnClick: false,
+          pauseOnHover: true,
+          draggable: false,
+        });
+
+        // Fallback navigation after a delay
+        setTimeout(() => {
+          toast.dismiss();
+          navigate('/add-items-to-list', { 
+            state: { 
+              list: response.data,
+              fromCreateList: true 
+            } 
+          });
+        }, 5000);
       }
     } catch (error) {
       console.error('Error creating list:', error);
-      setToast({
-        type: 'error',
-        message: 'Error creating list',
-        subMessage: 'Please try again',
-        actionLabel: 'Dismiss'
-      });
+      toast.error(error.response?.data?.message || 'Failed to create list');
     }
-  };
-
-  const handleCloseToast = () => {
-    setToast(null);
   };
 
   return (
     <div className="min-h-screen bg-white">
-      {toast && (
-        <Toast
-          type={toast.type}
-          message={toast.message}
-          subMessage={toast.subMessage}
-          actionLabel={toast.actionLabel}
-          onClose={handleCloseToast}
-        />
-      )}
+      <ToastContainer />
       
       {/* Header */}
       <div className="bg-[#D62929] p-4">

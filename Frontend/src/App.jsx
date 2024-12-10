@@ -16,6 +16,8 @@ import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
 import CreateNewPasswordScreen from './screens/CreateNewPasswordScreen';
 import CategoriesScreen from './screens/CategoriesScreen';
 import ProtectedRoute from './components/ProtectedRoute';
+import AddItemsToListScreen from './screens/AddItemsToListScreen';
+import AddSpecificItemsScreen from './screens/AddSpecificItemsScreen';
 
 const App = () => {
   return (
@@ -39,6 +41,22 @@ const App = () => {
           <Route path="/notifications" element={<ProtectedRoute><NotificationScreen /></ProtectedRoute>} />
           <Route path="/list/:id" element={<ProtectedRoute><ListDetailsScreen /></ProtectedRoute>} />
           <Route path="/categories" element={<ProtectedRoute><CategoriesScreen /></ProtectedRoute>} />
+          <Route 
+            path="/add-items-to-list" 
+            element={
+              <ProtectedRoute>
+                <AddItemsToListScreen />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/add-specific-items" 
+            element={
+              <ProtectedRoute>
+                <AddSpecificItemsScreen />
+              </ProtectedRoute>
+            } 
+          />
           
           {/* Fallback Route */}
           <Route path="*" element={<Navigate to="/" replace />} />

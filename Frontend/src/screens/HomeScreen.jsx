@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserImage } from '../hooks/useUserImage';
 import userIcon from '../assets/user.png';
@@ -19,6 +19,7 @@ import petFoodIcon from '../assets/pet-food.png';
 import babyFoodIcon from '../assets/Baby food.png';
 import powerIcon from '../assets/power.png';
 import BottomNavBar from '../components/BottomNavBar';
+import axios from 'axios';
 
 const HomeScreen = () => {
   const userImage = useUserImage();
@@ -27,6 +28,8 @@ const HomeScreen = () => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
+  const [recentLists, setRecentLists] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     // Get user info from localStorage
@@ -51,6 +54,23 @@ const HomeScreen = () => {
     };
 
     loadUserInfo();
+
+    // Add this new function to fetch recent lists
+    const fetchRecentLists = async () => {
+      try {
+        const token = localStorage.getItem('userToken');
+        const response = await axios.get('http://localhost:3000/api/lists?limit=3', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        setRecentLists(response.data);
+      } catch (error) {
+        console.error('Error fetching recent lists:', error);
+      }
+    };
+
+    fetchRecentLists();
   }, [navigate]);
 
   const handleLogout = () => {
@@ -89,6 +109,13 @@ const HomeScreen = () => {
   const handleViewAllCategories = () => {
     navigate('/categories');
   };
+
+  // Filter lists based on search query
+  const filteredLists = useMemo(() => {
+    return recentLists.filter(list => 
+      list.title && list.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [recentLists, searchQuery]);
 
   return (
     <div className="min-h-screen bg-white font-roboto relative">
@@ -196,20 +223,20 @@ const HomeScreen = () => {
         </div>
 
         {/* Search Bar */}
-        <div>
-          <div className="relative">
-            <input 
-              type="text"
-              placeholder="Search"
-              className="w-full h-12 rounded-lg border border-gray-200 pl-12 pr-4 bg-white"
+        <div className="relative">
+          <input 
+            type="text"
+            placeholder="Search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full h-12 rounded-lg border border-gray-200 pl-12 pr-4 bg-white"
+          />
+          <div className="absolute left-4 top-1/2 -translate-y-1/2">
+            <img 
+              src={searchIcon} 
+              alt="Search"
+              className="w-5 h-5" 
             />
-            <div className="absolute left-4 top-1/2 -translate-y-1/2">
-              <img 
-                src={searchIcon} 
-                alt="Search"
-                className="w-5 h-5" 
-              />
-            </div>
           </div>
         </div>
       </div>
@@ -271,33 +298,26 @@ const HomeScreen = () => {
           </div>
           
           <div className="space-y-3">
-            {/* List Item */}
-            <div className="flex items-center bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-              <div className="w-16 h-16 rounded-lg bg-[#D62929]/10 flex items-center justify-center mr-4">
-                <img 
-                  src="/src/assets/store.png" 
-                  alt="Store"
-                  className="w-12 h-12 object-contain"
-                />
+            {filteredLists.length > 0 ? (
+              filteredLists.slice(0, 2).map((list) => (
+                <div 
+                  key={list._id}
+                  className="flex items-center bg-white rounded-xl border border-gray-200 p-4 shadow-sm cursor-pointer"
+                  onClick={() => navigate(`/lists/${list._id}`, { state: { list } })}
+                >
+                  <div className="flex-1">
+                    <h3 className="text-base font-semibold">{list.title}</h3>
+                    <p className="text-sm text-gray-500">
+                      {list.items?.length || 0} items
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center text-gray-500 py-4">
+                {searchQuery ? 'No lists found matching your search' : 'No lists yet'}
               </div>
-              <div className="flex-1">
-                <h3 className="text-base font-semibold">Groceries</h3>
-              </div>
-            </div>
-
-            {/* List Item */}
-            <div className="flex items-center bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-              <div className="w-16 h-16 rounded-lg bg-[#D62929]/10 flex items-center justify-center mr-4">
-                <img 
-                  src="/src/assets/store.png" 
-                  alt="Store"
-                  className="w-12 h-12 object-contain"
-                />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-base font-semibold">Adobo Recipe</h3>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

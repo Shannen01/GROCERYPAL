@@ -106,7 +106,7 @@ const ListDetailsScreen = () => {
             // Add "add item" logic here
           }}
         >
-          +
+    
         </button>
       </div>
 

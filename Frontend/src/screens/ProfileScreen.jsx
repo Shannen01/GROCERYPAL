@@ -148,11 +148,31 @@ const ProfileScreen = () => {
         }
       } catch (error) {
         console.error('Error fetching profile:', error);
-        setToast({
-          type: 'error',
-          message: 'Error',
-          subMessage: 'Failed to load profile'
-        });
+        
+        // More detailed error handling
+        if (error.response) {
+          // The request was made and the server responded with a status code
+          // that falls out of the range of 2xx
+          setToast({
+            type: 'error',
+            message: 'Server Error',
+            subMessage: error.response.data.message || 'Failed to load profile'
+          });
+        } else if (error.request) {
+          // The request was made but no response was received
+          setToast({
+            type: 'error',
+            message: 'Network Error',
+            subMessage: 'Unable to connect to the server. Please check your internet connection.'
+          });
+        } else {
+          // Something happened in setting up the request that triggered an Error
+          setToast({
+            type: 'error',
+            message: 'Error',
+            subMessage: 'An unexpected error occurred'
+          });
+        }
       }
     };
 

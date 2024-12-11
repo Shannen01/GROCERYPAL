@@ -95,14 +95,23 @@ const AddItemsToListScreen = () => {
       try {
         let listId;
         
-        // First try to get list from location state
-        if (location.state?.list) {
+        // First try to get listId from location state
+        if (location.state?.listId) {
+          listId = location.state.listId;
+        } else if (location.state?.list) {
+          // Fallback to old state format
           setList(location.state.list);
           listId = location.state.list._id;
         } else {
           // If not in state, get from URL params
           const searchParams = new URLSearchParams(location.search);
           listId = searchParams.get('listId');
+        }
+
+        // If not in search params, try getting from URL path
+        if (!listId) {
+          const pathParts = location.pathname.split('/');
+          listId = pathParts[pathParts.length - 1];
         }
 
         if (!listId) {
@@ -285,6 +294,27 @@ const AddItemsToListScreen = () => {
     return (completedItems / items.length) * 100;
   };
 
+  const handleDeleteItem = async (itemId) => {
+    try {
+      const token = localStorage.getItem('userToken');
+      await axios.delete(
+        `http://localhost:3000/api/lists/${list._id}/items/${itemId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+      
+      // Update local state by removing the deleted item
+      setItems(items.filter(item => item._id !== itemId));
+      toast.success('Item deleted successfully');
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      toast.error('Failed to delete item');
+    }
+  };
+
   const handleDeleteCheckedItems = async () => {
     try {
       const token = localStorage.getItem('userToken');
@@ -343,43 +373,23 @@ const AddItemsToListScreen = () => {
             <h1 className="text-[24px] font-bold text-white">{list?.title}</h1>
           </div>
           
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => {
-                const checkedItems = items.filter(item => item.isCompleted);
-                if (checkedItems.length === 0) {
-                  toast.info('Select items to delete');
-                  return;
-                }
-                setShowDeleteConfirm(true);
-              }}
-              className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center"
-            >
-              <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                className="w-5 h-5 text-white"
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-4">
             <button
               onClick={handleShare}
               className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center"
             >
               <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                className="w-5 h-5 text-white"
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor"
+              xmlns="http://www.w3.org/2000/svg" 
+              className="w-5 h-5 text-white"
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
               </svg>
             </button>
-          </div>
+            </div>
+
         </div>
 
         {/* Add Progress Bar Section */}
@@ -401,57 +411,70 @@ const AddItemsToListScreen = () => {
         )}
       </div>
 
-      {/* Items List */}
-      <div className="flex-1 bg-white px-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+        {/* Items List */}
+        <div className="flex-1 bg-white px-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
         {items.length > 0 ? (
           <div className="space-y-4 py-4">
-            {items.map((item, index) => (
-              <div 
-                key={item._id || index} 
-                className="flex items-center justify-between bg-white rounded-[20px] p-4 shadow-md"
-              >
-                {/* Checkbox */}
-                <div className="flex items-center">
-                  <input 
-                    type="checkbox"
-                    checked={!!item.isCompleted}
-                    onChange={() => handleToggleItem(item._id, item.isCompleted)}
-                    className="form-checkbox h-6 w-6 text-[#D62929] rounded mr-4"
-                  />
-                  
-                  {/* Item Details */}
-                  <div className="flex flex-col">
-                    <span className={`text-xl font-semibold ${item.isCompleted ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-                      {item.name}
-                      {item.quantity && (
-                        <span className="ml-2 text-base text-gray-500">
-                          ({item.quantity})
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Category Image */}
-                <div className="w-10 h-10 flex items-center justify-center">
-                  {item.category && (
-                    <img 
-                      src={PREDEFINED_CATEGORIES.find(cat => cat.id === item.category)?.image}
-                      alt={item.category}
-                      className="w-7 h-7 object-contain"
-                      onError={(e) => e.target.style.display = 'none'}
-                    />
-                  )}
-                </div>
+          {items.map((item, index) => (
+            <div 
+            key={item._id || index} 
+            className="flex items-center justify-between bg-white rounded-[20px] p-4 shadow-md"
+            >
+            {/* Checkbox and Item Details */}
+            <div className="flex items-center flex-1">
+              <input 
+              type="checkbox"
+              checked={!!item.isCompleted}
+              onChange={() => handleToggleItem(item._id, item.isCompleted)}
+              className="form-checkbox h-6 w-6 text-[#D62929] rounded mr-4"
+              />
+              
+              <div className="flex flex-col">
+              <span className={`text-xl font-semibold ${item.isCompleted ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                {item.name}
+                {item.quantity && (
+                <span className="ml-2 text-base text-gray-500">
+                  ({item.quantity})
+                </span>
+                )}
+              </span>
               </div>
-            ))}
+            </div>
+
+            {/* Category Image and Delete Button */}
+            <div className="flex items-center gap-2">
+              {item.category && (
+              <img 
+                src={PREDEFINED_CATEGORIES.find(cat => cat.id === item.category)?.image}
+                alt={item.category}
+                className="w-7 h-7 object-contain"
+                onError={(e) => e.target.style.display = 'none'}
+              />
+              )}
+              <button
+              onClick={() => handleDeleteItem(item._id)}
+              className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center"
+              >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className="w-4 h-4 text-[#D62929]"
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              </button>
+            </div>
+            </div>
+          ))}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
-            <p className="text-gray-500">No items added yet</p>
+          <p className="text-gray-500">No items added yet</p>
           </div>
         )}
-      </div>
+        </div>
 
       {/* Add Button */}
       <div className="fixed bottom-6 left-4 right-4">

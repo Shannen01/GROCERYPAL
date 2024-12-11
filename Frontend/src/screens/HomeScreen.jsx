@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserImage } from '../hooks/useUserImage';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 import userIcon from '../assets/user.png';
 import searchIcon from '../assets/search.png';
 import fruitsIcon from '../assets/Fruits.png';
@@ -30,43 +32,58 @@ const HomeScreen = () => {
   const navigate = useNavigate();
   const [recentLists, setRecentLists] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Get user info from localStorage
     const loadUserInfo = () => {
       const userInfo = localStorage.getItem('userInfo');
       console.log('LoadUserInfo - Raw localStorage:', userInfo);
 
       if (userInfo) {
-        try {
-          const user = JSON.parse(userInfo);
-          console.log('LoadUserInfo - Parsed user:', user);
+      try {
+        const user = JSON.parse(userInfo);
+        console.log('LoadUserInfo - Parsed user:', user);
 
-          setUserName(user.name);
-          setUserEmail(user.email);
-        } catch (error) {
-          console.error('Error parsing user info:', error);
-        }
-      } else {
-        // If no user info, redirect to login
+        setUserName(user.name);
+        setUserEmail(user.email);
+      } catch (error) {
+        console.error('Error parsing user info:', error);
         navigate('/login', { replace: true });
+      }
+      } else {
+      navigate('/login', { replace: true });
       }
     };
 
     loadUserInfo();
 
-    // Add this new function to fetch recent lists
     const fetchRecentLists = async () => {
+      setIsLoading(true);
+      setError(null);
       try {
-        const token = localStorage.getItem('userToken');
-        const response = await axios.get('http://localhost:3000/api/lists?limit=3', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+      const token = localStorage.getItem('userToken');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+      
+        const response = await axios.get(`${API_BASE_URL}/api/lists?limit=3`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        withCredentials: true // This is important for CORS with credentials
         });
         setRecentLists(response.data);
-      } catch (error) {
+        } catch (error) {
         console.error('Error fetching recent lists:', error);
+        setError(error.response?.data?.message || error.message || 'Failed to fetch recent lists');
+      if (error.response?.status === 401) {
+        navigate('/login', { replace: true });
+      }
+      } finally {
+      setIsLoading(false);
       }
     };
 
@@ -297,28 +314,36 @@ const HomeScreen = () => {
             </button>
           </div>
           
-          <div className="space-y-3">
-            {filteredLists.length > 0 ? (
+            <div className="space-y-3">
+            {isLoading ? (
+              <div className="text-center text-gray-500 py-4">
+              Loading lists...
+              </div>
+            ) : error ? (
+              <div className="text-center text-red-500 py-4">
+              {error}
+              </div>
+            ) : filteredLists.length > 0 ? (
               filteredLists.slice(0, 2).map((list) => (
-                <div 
-                  key={list._id}
-                  className="flex items-center bg-white rounded-xl border border-gray-200 p-4 shadow-sm cursor-pointer"
-                  onClick={() => navigate(`/lists/${list._id}`, { state: { list } })}
-                >
-                  <div className="flex-1">
-                    <h3 className="text-base font-semibold">{list.title}</h3>
-                    <p className="text-sm text-gray-500">
-                      {list.items?.length || 0} items
-                    </p>
-                  </div>
+              <div 
+                key={list._id}
+                className="flex items-center bg-white rounded-xl border border-gray-200 p-4 shadow-sm cursor-pointer"
+                onClick={() => navigate('/add-items-to-list', { state: { listId: list._id } })}
+              >
+                <div className="flex-1">
+                <h3 className="text-base font-semibold">{list.title}</h3>
+                <p className="text-sm text-gray-500">
+                  {list.items?.length || 0} items
+                </p>
                 </div>
+              </div>
               ))
             ) : (
               <div className="text-center text-gray-500 py-4">
-                {searchQuery ? 'No lists found matching your search' : 'No lists yet'}
+              {searchQuery ? 'No lists found matching your search' : 'No lists yet'}
               </div>
             )}
-          </div>
+            </div>
         </div>
       </div>
 

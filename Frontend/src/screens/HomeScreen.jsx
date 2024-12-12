@@ -35,6 +35,28 @@ const HomeScreen = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const getImageUrl = (imagePath) => {
+    // If no image path, return default
+    if (!imagePath) return userIcon;
+
+    // If it's already a full URL, return it
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+
+    // Construct URL using base API URL
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+    const fullUrl = `${baseUrl}${imagePath.startsWith('/') ? imagePath : `/${imagePath}`}`;
+
+    console.log('Constructed Home Screen Image URL:', {
+      originalPath: imagePath,
+      baseUrl: baseUrl,
+      fullUrl: fullUrl
+    });
+
+    return fullUrl || userIcon;
+  };
+
   useEffect(() => {
     const loadUserInfo = () => {
       const userInfo = localStorage.getItem('userInfo');
@@ -159,11 +181,15 @@ const HomeScreen = () => {
                   <div className="flex items-center gap-2">
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
                       <img 
-                        src={userImage} 
+                        src={getImageUrl(userImage)} 
                         alt="Profile" 
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          console.log('Image load error:', e);
+                          console.log('Home Screen Image load error:', {
+                            currentSrc: e.target.src,
+                            userImage: userImage,
+                            defaultImage: userIcon
+                          });
                           e.target.src = userIcon;
                         }}
                       />
@@ -232,7 +258,7 @@ const HomeScreen = () => {
             onClick={() => setIsSidebarOpen(true)}
           >
             <img 
-              src={userImage} 
+              src={getImageUrl(userImage)} 
               alt="Profile" 
               className="profile-image-circle"
             />

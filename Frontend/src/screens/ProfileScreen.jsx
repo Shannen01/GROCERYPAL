@@ -132,42 +132,78 @@ const ProfileScreen = () => {
     email: ''
   });
 
+  // Utility function to construct full image URL
+  const constructImageUrl = (imagePath) => {
+    // If no image path, return default
+    if (!imagePath) return defaultUserImage;
+
+    // If it's already a full URL, return it
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+
+    // Construct URL using base API URL
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+    const fullUrl = `${baseUrl}${imagePath.startsWith('/') ? imagePath : `/${imagePath}`}`;
+
+    console.log('Constructed Image URL:', {
+      originalPath: imagePath,
+      baseUrl: baseUrl,
+      fullUrl: fullUrl
+    });
+
+    return fullUrl;
+  };
+
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         const response = await axios.get('/api/profile');
         if (response.data.success) {
           const userData = response.data.user;
+          
+          // Construct full image URL or use default
+          const fullImageUrl = constructImageUrl(userData.image);
+
+          console.log('Profile Image Details:', {
+            userDataImage: userData.image,
+            fullImageUrl: fullImageUrl,
+            defaultUserImage: defaultUserImage
+          });
+
           setProfile({
             ...userData,
-            image: userData.image ? `${import.meta.env.VITE_API_URL}${userData.image}` : null
+            image: fullImageUrl  // Always use full URL or default
           });
+
+          // Update edited profile for form
           setEditedProfile({
             name: userData.name,
             email: userData.email
           });
+
+          // Update localStorage with image info
+          const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+          userInfo.image = userData.image || null;  // Store relative path or null
+          localStorage.setItem('userInfo', JSON.stringify(userInfo));
         }
       } catch (error) {
         console.error('Error fetching profile:', error);
         
         // More detailed error handling
         if (error.response) {
-          // The request was made and the server responded with a status code
-          // that falls out of the range of 2xx
           setToast({
             type: 'error',
             message: 'Server Error',
             subMessage: error.response.data.message || 'Failed to load profile'
           });
         } else if (error.request) {
-          // The request was made but no response was received
           setToast({
             type: 'error',
             message: 'Network Error',
             subMessage: 'Unable to connect to the server. Please check your internet connection.'
           });
         } else {
-          // Something happened in setting up the request that triggered an Error
           setToast({
             type: 'error',
             message: 'Error',
@@ -178,22 +214,6 @@ const ProfileScreen = () => {
     };
 
     fetchProfile();
-
-    // Listen for image updates
-    const handleImageUpdate = (e) => {
-      if (e.detail && e.detail.imageUrl) {
-        setProfile({
-          ...profile,
-          image: e.detail.imageUrl
-        });
-      }
-    };
-
-    window.addEventListener('userImageUpdated', handleImageUpdate);
-
-    return () => {
-      window.removeEventListener('userImageUpdated', handleImageUpdate);
-    };
   }, []);
 
   const handleEditToggle = () => {
@@ -262,8 +282,6 @@ const ProfileScreen = () => {
       const formData = new FormData();
       formData.append('image', file);
 
-      console.log('Uploading image:', file);
-
       const response = await axios.post('/api/profile/upload-image', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
@@ -272,31 +290,29 @@ const ProfileScreen = () => {
 
       const { success, imageUrl, message } = response.data;
 
-      console.log('Image Upload Response:', { success, imageUrl, message });
+      console.log('Image Upload Response:', {
+        success,
+        imageUrl,
+        message,
+        defaultUserImage
+      });
 
       if (success && imageUrl) {
-        const fullImageUrl = `${import.meta.env.VITE_API_URL}${imageUrl}`;
+        // Construct full image URL
+        const fullImageUrl = constructImageUrl(imageUrl);
 
-        console.log('Full Image URL:', fullImageUrl);
+        // Update profile state with full URL
+        setProfile(prevProfile => ({
+          ...prevProfile,
+          image: fullImageUrl || defaultUserImage
+        }));
 
-        // Update profile state
-        setProfile({
-          ...profile,
-          image: fullImageUrl
-        });
-
-        // Update localStorage with new image URL
+        // Update localStorage
         const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-        console.log('Existing User Info:', userInfo);
-
-        // Update the entire user info object
-        userInfo.image = imageUrl;  // Store relative path
+        userInfo.image = imageUrl || null;  // Store relative path or null
         localStorage.setItem('userInfo', JSON.stringify(userInfo));
 
-        console.log('Updated User Info in localStorage:', 
-          JSON.parse(localStorage.getItem('userInfo'))
-        );
-
+        // Close modal and show success toast
         setShowImageModal(false);
         setToast({
           type: 'success',
@@ -304,11 +320,10 @@ const ProfileScreen = () => {
           subMessage: message || 'Your profile picture has been updated'
         });
 
-        // Force a reload of the user's image in other components
-        console.log('Dispatching userImageUpdated event');
+        // Trigger image update event for other components
         window.dispatchEvent(new CustomEvent('userImageUpdated', { 
           detail: { 
-            imageUrl: fullImageUrl,
+            imageUrl: fullImageUrl || defaultUserImage,
             userId: userInfo._id
           } 
         }));
@@ -476,11 +491,15 @@ const ProfileScreen = () => {
           <div className="relative group">
             <div className="relative w-32 h-32 rounded-full border-2 border-white shadow-md">
               <img 
-                src={profile.image || defaultUserImage} 
+                src={constructImageUrl(profile.image)} 
                 alt="Profile" 
                 className="w-full h-full object-cover rounded-full"
                 onError={(e) => {
-                  e.target.onerror = null;
+                  console.log('Image load error:', {
+                    currentSrc: e.target.src,
+                    defaultImage: defaultUserImage,
+                    profileImage: profile.image
+                  });
                   e.target.src = defaultUserImage;
                 }}
               />
@@ -537,7 +556,54 @@ const ProfileScreen = () => {
         <ProfileImageModal 
           onClose={() => setShowImageModal(false)} 
           currentImage={profile.image} 
-          onImageUpload={handleImageUpload} 
+          onImageUpload={(file) => {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            axios.post('/api/profile/upload-image', formData, {
+              headers: {
+                'Content-Type': 'multipart/form-data'
+              }
+            })
+            .then((response) => {
+              const { success, imageUrl, message } = response.data;
+
+              if (success && imageUrl) {
+                const fullImageUrl = constructImageUrl(imageUrl);
+
+                setProfile({
+                  ...profile,
+                  image: fullImageUrl
+                });
+
+                const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+                userInfo.image = imageUrl;  
+                localStorage.setItem('userInfo', JSON.stringify(userInfo));
+
+                setShowImageModal(false);
+                setToast({
+                  type: 'success',
+                  message: 'Image Updated',
+                  subMessage: message || 'Your profile picture has been updated'
+                });
+
+                window.dispatchEvent(new CustomEvent('userImageUpdated', { 
+                  detail: { 
+                    imageUrl: fullImageUrl,
+                    userId: userInfo._id
+                  } 
+                }));
+              }
+            })
+            .catch((error) => {
+              console.error('Error uploading image:', error);
+              setToast({
+                type: 'error',
+                message: 'Upload Failed',
+                subMessage: error.response?.data?.message || 'Please try again later'
+              });
+            });
+          }} 
         />
       )}
 

@@ -29,7 +29,7 @@ router.patch('/:listId', protect, async (req, res) => {
     if (completedItems && Array.isArray(completedItems)) {
       list.items = list.items.map(item => ({
         ...item.toObject(),
-        isCompleted: completedItems.includes(item._id.toString())
+        checked: completedItems.includes(item._id.toString())
       }));
     }
 
@@ -152,34 +152,30 @@ router.patch('/:listId/items/:itemId/toggle', protect, async (req, res) => {
   try {
     const { listId, itemId } = req.params;
     
-    const list = await List.findOneAndUpdate(
-      { 
-        _id: listId,
-        'items._id': itemId 
-      },
-      [
-        {
-          $set: {
-            'items.$[elem].isCompleted': {
-              $not: ['$items.$[elem].isCompleted']
-            }
-          }
-        }
-      ],
-      {
-        arrayFilters: [{ 'elem._id': itemId }],
-        new: true
-      }
-    );
-
+    // Find the list first
+    const list = await List.findById(listId);
+    
     if (!list) {
-      return res.status(404).json({ message: 'List or item not found' });
+      return res.status(404).json({ message: 'List not found' });
     }
+
+    // Find the specific item
+    const itemIndex = list.items.findIndex(item => item._id.toString() === itemId);
+    
+    if (itemIndex === -1) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+
+    // Toggle the checked status
+    list.items[itemIndex].checked = !list.items[itemIndex].checked;
+
+    // Save the updated list
+    await list.save();
 
     res.json(list);
   } catch (error) {
     console.error('Error toggling item:', error);
-    res.status(500).json({ message: 'Failed to toggle item' });
+    res.status(500).json({ message: 'Failed to toggle item', error: error.message });
   }
 });
 

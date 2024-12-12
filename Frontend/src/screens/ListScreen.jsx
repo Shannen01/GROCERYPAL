@@ -490,7 +490,9 @@ const ListScreen = () => {
               </div>
               <div
                 className="cursor-pointer"
-                onClick={() => navigate(`/lists/${list._id}`)}
+                onClick={() => navigate(`/add-items-to-list`, { 
+                  state: { list: list }
+                })}
               >
                 <div className="bg-gray-200 rounded-full h-2 mb-1">
                   <div

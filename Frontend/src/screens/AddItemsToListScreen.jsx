@@ -204,20 +204,20 @@ const AddItemsToListScreen = () => {
     }
   };
 
-  const handleToggleItem = async (itemId, isCompleted) => {
+  const handleToggleItem = async (itemId, checked) => {
     try {
       const token = localStorage.getItem('userToken');
       
       // Update the items state optimistically
       const updatedItems = items.map(item => 
-        item._id === itemId ? { ...item, isCompleted: !item.isCompleted } : item
+        item._id === itemId ? { ...item, checked: !item.checked } : item
       );
       setItems(updatedItems);
 
       // Make the API call with the correct endpoint format
       const response = await axios.patch(
-        `http://localhost:3000/api/lists/${list._id}/items/${itemId}`,
-        { isCompleted: !isCompleted },
+        `http://localhost:3000/api/lists/${list._id}/items/${itemId}/toggle`,
+        {},
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -234,7 +234,7 @@ const AddItemsToListScreen = () => {
       
       // Revert the optimistic update if the API call fails
       setItems(items.map(item => 
-        item._id === itemId ? { ...item, isCompleted: isCompleted } : item
+        item._id === itemId ? { ...item, checked: checked } : item
       ));
       
       toast.error('Failed to update item status');
@@ -292,30 +292,26 @@ const AddItemsToListScreen = () => {
   const handleDeleteItem = async (itemId) => {
     try {
       const token = localStorage.getItem('userToken');
-      await axios.delete(
-        `http://localhost:3000/api/lists/${list._id}/items/${itemId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-      
-      // Update local state by removing the deleted item
+      await axios.delete(`http://localhost:3000/api/lists/${list._id}/items`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        data: { itemIds: [itemId] }
+      });
+
+      // Remove item from local state
       setItems(items.filter(item => item._id !== itemId));
-      setShowDeleteConfirm(false);
-      setItemToDelete(null);
-      toast.success('Item deleted successfully');
+      toast.success('Item removed');
     } catch (error) {
       console.error('Error deleting item:', error);
-      toast.error('Failed to delete item');
+      toast.error('Failed to remove item');
     }
   };
 
   const handleDeleteCheckedItems = async () => {
     try {
       const token = localStorage.getItem('userToken');
-      const checkedItems = items.filter(item => item.isCompleted);
+      const checkedItems = items.filter(item => item.checked);
       
       if (checkedItems.length === 0) {
         toast.info('No items selected for deletion');
@@ -342,7 +338,7 @@ const AddItemsToListScreen = () => {
       });
 
       console.log('Delete response:', response.data);
-      setItems(items.filter(item => !item.isCompleted));
+      setItems(items.filter(item => !item.checked));
       toast.success('Selected items deleted successfully');
       setShowDeleteConfirm(false);
     } catch (error) {
@@ -359,7 +355,7 @@ const AddItemsToListScreen = () => {
   const handleDone = async () => {
     try {
       const token = localStorage.getItem('userToken');
-      const completedItems = items.filter(item => item.isCompleted).map(item => item._id);
+      const completedItems = items.filter(item => item.checked).map(item => item._id);
       
       // Update the list's completed status
       const response = await axios.patch(
@@ -433,13 +429,13 @@ const AddItemsToListScreen = () => {
             <div className="flex items-center flex-1">
               <input 
               type="checkbox"
-              checked={!!item.isCompleted}
-              onChange={() => handleToggleItem(item._id, item.isCompleted)}
+              checked={!!item.checked}
+              onChange={() => handleToggleItem(item._id, item.checked)}
               className="form-checkbox h-6 w-6 text-[#D62929] rounded mr-4"
               />
               
               <div className="flex flex-col">
-              <span className={`text-xl font-semibold ${item.isCompleted ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+              <span className={`text-xl font-semibold ${item.checked ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                 {item.name}
                 {item.quantity && (
                 <span className="ml-2 text-base text-gray-500">

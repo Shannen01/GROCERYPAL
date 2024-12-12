@@ -1,10 +1,48 @@
 const express = require('express');
 const router = express.Router();
-const List = require('../models/List');
-const { authenticateToken } = require('../middleware/auth');
+const List = require('../models/listModel'); 
+const User = require('../models/userModel'); 
+const Notification = require('../models/notificationModel'); 
+const { protect } = require('../middleware/authMiddleware'); 
 
-// IMPORTANT: Put this route FIRST, before other routes
-router.delete('/:listId/items', authenticateToken, async (req, res) => {
+// PATCH update list completion status
+router.patch('/:listId', protect, async (req, res) => {
+  try {
+    const { listId } = req.params;
+    const { isCompleted, completedItems } = req.body;
+
+    console.log('Update list route hit:', {
+      listId,
+      isCompleted,
+      completedItems
+    });
+
+    const list = await List.findById(listId);
+    if (!list) {
+      return res.status(404).json({ message: 'List not found' });
+    }
+
+    // Update completion status
+    list.isCompleted = isCompleted;
+
+    // Update items completion status
+    if (completedItems && Array.isArray(completedItems)) {
+      list.items = list.items.map(item => ({
+        ...item.toObject(),
+        isCompleted: completedItems.includes(item._id.toString())
+      }));
+    }
+
+    await list.save();
+    res.json(list);
+  } catch (error) {
+    console.error('Error updating list:', error);
+    res.status(500).json({ message: 'Failed to update list' });
+  }
+});
+
+// DELETE items from list
+router.delete('/:listId/items', protect, async (req, res) => {
   try {
     const { listId } = req.params;
     const { itemIds } = req.body;
@@ -24,7 +62,7 @@ router.delete('/:listId/items', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'List not found' });
     }
 
-    // Filter out the items that should be deleted
+    // Remove specified items
     const originalLength = list.items.length;
     list.items = list.items.filter(item => !itemIds.includes(item._id.toString()));
     const newLength = list.items.length;
@@ -39,8 +77,8 @@ router.delete('/:listId/items', authenticateToken, async (req, res) => {
   }
 });
 
-// Get list items
-router.get('/:listId/items', authenticateToken, async (req, res) => {
+// GET list items
+router.get('/:listId/items', protect, async (req, res) => {
   try {
     const list = await List.findById(req.params.listId);
     if (!list) {
@@ -53,8 +91,8 @@ router.get('/:listId/items', authenticateToken, async (req, res) => {
   }
 });
 
-// Get single list
-router.get('/:listId', authenticateToken, async (req, res) => {
+// GET single list
+router.get('/:listId', protect, async (req, res) => {
   try {
     console.log('Fetching list with ID:', req.params.listId); // Debug log
     
@@ -73,8 +111,8 @@ router.get('/:listId', authenticateToken, async (req, res) => {
   }
 });
 
-// Add items to a list
-router.post('/:listId/items', authenticateToken, async (req, res) => {
+// POST add items to a list
+router.post('/:listId/items', protect, async (req, res) => {
   try {
     const { listId } = req.params;
     const { name, quantity, category } = req.body;
@@ -109,8 +147,8 @@ router.post('/:listId/items', authenticateToken, async (req, res) => {
   }
 });
 
-// Toggle item completion status
-router.patch('/:listId/items/:itemId/toggle', authenticateToken, async (req, res) => {
+// PATCH toggle item completion status
+router.patch('/:listId/items/:itemId/toggle', protect, async (req, res) => {
   try {
     const { listId, itemId } = req.params;
     
@@ -145,8 +183,8 @@ router.patch('/:listId/items/:itemId/toggle', authenticateToken, async (req, res
   }
 });
 
-// Add this route to handle list deletion
-router.delete('/:listId', authenticateToken, async (req, res) => {
+// DELETE list
+router.delete('/:listId', protect, async (req, res) => {
   try {
     const { listId } = req.params;
     
@@ -164,10 +202,10 @@ router.delete('/:listId', authenticateToken, async (req, res) => {
   }
 });
 
-// Add this route for getting recent lists (limit to 2)
-router.get('/', authenticateToken, async (req, res) => {
+// GET recent lists (limit to 2)
+router.get('/', protect, async (req, res) => {
   try {
-    const lists = await List.find({ owner: req.user._id })
+    const lists = await List.find({ user: req.user.id })
       .sort({ createdAt: -1 }) // Sort by creation date, newest first
       .limit(2); // Limit to 2 lists
     
@@ -178,4 +216,95 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-module.exports = router; 
+// Share list with another user
+router.post('/:id/share', protect, async (req, res) => {
+  try {
+    const { recipientEmail } = req.body;
+    const listId = req.params.id;
+
+    console.log('Share list request:', { 
+      listId, 
+      recipientEmail, 
+      userId: req.user.id 
+    });
+
+    // Validate email format
+    if (!recipientEmail || !recipientEmail.includes('@')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid email address'
+      });
+    }
+
+    // Find recipient user
+    const recipientUser = await User.findOne({ email: recipientEmail });
+    if (!recipientUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'The email address you entered does not exist in our system'
+      });
+    }
+
+    // Check if trying to share with self
+    if (recipientUser._id.toString() === req.user.id) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot share a list with yourself'
+      });
+    }
+
+    // Find the list
+    const list = await List.findById(listId);
+    if (!list) {
+      return res.status(404).json({
+        success: false,
+        message: 'List not found'
+      });
+    }
+
+    // Check if user owns the list
+    if (list.user.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to share this list'
+      });
+    }
+
+    // Create a new list for the recipient
+    const sharedList = new List({
+      title: `${list.title} (Shared)`,
+      description: list.description,
+      user: recipientUser._id,
+      items: list.items,
+      category: list.category
+    });
+
+    await sharedList.save();
+
+    // Create notification for recipient
+    const notification = new Notification({
+      recipient: recipientUser._id,
+      sender: req.user.id,
+      type: 'LIST_SHARED',
+      message: `${req.user.name} shared a list with you: ${list.title}`,
+      relatedList: sharedList._id,
+      read: false
+    });
+
+    await notification.save();
+
+    res.json({
+      success: true,
+      message: 'List shared successfully'
+    });
+
+  } catch (error) {
+    console.error('Error sharing list:', error);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred while sharing the list'
+    });
+  }
+});
+
+module.exports = router;

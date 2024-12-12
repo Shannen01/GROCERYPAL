@@ -5,7 +5,6 @@ import { toast } from 'react-toastify';
 import searchIcon from '../assets/search-interface.png';
 import BottomNavBar from '../components/BottomNavBar';
 
-
 const calculateProgress = (list) => {
   if (!list.items || list.items.length === 0) return 0;
   const completedItems = list.items.filter(item => item.isCompleted).length;
@@ -74,13 +73,45 @@ const ConfirmDialog = ({ title, message, onConfirm, onCancel }) => {
   );
 };
 
-const ShareModal = ({ onClose }) => {
+const ShareModal = ({ onClose, list }) => {
   const [email, setEmail] = useState('');
+  const [isSharing, setIsSharing] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSend = () => {
-    // Add your share logic here
-    console.log('Sharing with:', email);
-    onClose();
+  const handleSend = async () => {
+    if (!email) {
+      setError('Please enter an email address');
+      return;
+    }
+
+    setIsSharing(true);
+    setError('');
+
+    try {
+      console.log('Sharing list:', { 
+        listId: list._id, 
+        recipientEmail: email 
+      });
+
+      const response = await axios.post(`/api/lists/${list._id}/share`, {
+        recipientEmail: email
+      });
+
+      if (response.data.success) {
+        toast.success('List shared successfully');
+        onClose();
+      }
+    } catch (error) {
+      console.error('Full error details:', {
+        response: error.response,
+        request: error.request,
+        message: error.message
+      });
+
+      setError(error.response?.data?.message || 'Failed to share list');
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   return (
@@ -95,29 +126,43 @@ const ShareModal = ({ onClose }) => {
         </div>
 
         <p className="text-gray-600 text-sm mb-4">
-          When the list is shared, any changes are instantly visible to everyone 🚀
+          Share this list with another GroceryPal user 🚀
         </p>
 
         <div className="relative mb-4">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
             </svg>
           </div>
           <input
-            type="text"
+            type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Enter name or email"
-            className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg"
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setError('');
+            }}
+            placeholder="Enter email address"
+            className={`w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg ${error ? 'border border-red-500' : ''}`}
           />
         </div>
 
+        {error && (
+          <div className="mb-4 text-sm text-red-500">
+            {error}
+          </div>
+        )}
+
         <button
           onClick={handleSend}
-          className="w-full bg-blue-500 text-white py-2 rounded-lg font-medium"
+          disabled={isSharing}
+          className={`w-full py-2 rounded-lg font-medium ${
+            isSharing 
+              ? 'bg-gray-400 text-white cursor-not-allowed'
+              : 'bg-[#E4A76F] text-white hover:bg-[#d69a62]'
+          }`}
         >
-          Send
+          {isSharing ? 'Sharing...' : 'Share'}
         </button>
       </div>
     </>
@@ -210,6 +255,7 @@ const ManageListModal = ({ onClose, list, onDelete }) => {
               setShowShareModal(false);
               onClose();
             }} 
+            list={list}
           />
         </div>
       )}
@@ -319,6 +365,9 @@ const ListScreen = () => {
   const [selectedList, setSelectedList] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [isSharing, setIsSharing] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -337,10 +386,21 @@ const ListScreen = () => {
     }
   };
 
-  // Fetch lists when component mounts
   useEffect(() => {
+    // Check if we have an updated list from navigation
+    if (location.state?.updatedList) {
+      // Update the specific list in our lists array
+      setLists(prevLists => 
+        prevLists.map(list => 
+          list._id === location.state.updatedList._id 
+            ? location.state.updatedList 
+            : list
+        )
+      );
+    }
+    
     fetchLists();
-  }, [location.key]);
+  }, [location.key, location.state]);
 
   const filteredLists = useMemo(() => {
     return lists.filter(list => 
@@ -348,119 +408,112 @@ const ListScreen = () => {
     );
   }, [lists, searchQuery]);
 
+  const handleShare = async () => {
+    if (!recipientEmail) {
+      toast.error('Please enter an email address');
+      return;
+    }
+
+    setIsSharing(true);
+    try {
+      const response = await axios.post(`/api/lists/${selectedList._id}/share`, {
+        recipientEmail
+      });
+
+      if (response.data.success) {
+        toast.success('List shared successfully');
+        setShowShareModal(false);
+        setRecipientEmail('');
+      }
+    } catch (error) {
+      toast.error('Failed to share list');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="bg-[#D62929] p-4">
-        <div className="flex items-center">
-          <button 
-            onClick={() => navigate(-1)}
-            className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/20 mr-3"
-          >
-            <img src="/src/assets/back.png" alt="Back" className="w-5 h-5 brightness-0 invert" />
-          </button>
-          <h1 className="text-[24px] font-bold text-white">My List</h1>
-        </div>
+        <h1 className="text-white text-xl font-semibold">My Lists</h1>
+      </div>
 
-        {/* Search Bar */}
-        <div className="mt-4">
-          <div className="relative">
-            <input 
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search"
-              className="w-full h-12 rounded-lg border border-white pl-12 pr-4"
-            />
-            <img 
-              src={searchIcon}
-              alt="Search"
-              className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5"
-            />
-          </div>
+      {/* Search Bar */}
+      <div className="p-4">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search lists..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full p-3 pl-10 bg-gray-100 rounded-lg"
+          />
+          <img
+            src={searchIcon}
+            alt="Search"
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5"
+          />
         </div>
       </div>
 
       {/* Lists */}
-      <div className="px-4 pt-4 pb-24">
-        <div className="space-y-3">
-          {filteredLists.length > 0 ? (
-            filteredLists.map((list) => (
-              <div 
-                key={list._id}
-                className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm"
-              >
-                <div className="flex items-center justify-between">
-                  <div 
-                    className="flex-1 cursor-pointer"
-                    onClick={() => navigate(`/add-items-to-list`, { 
-                      state: { list },
-                      search: `?listId=${list._id}`
-                    })}
-                  >
-                    {/* List Title */}
-                    <h3 className="font-semibold text-base mb-1">{list.title}</h3>
-                    
-                    {/* Progress Bar */}
-                    {list.items && list.items.length > 0 && (
-                      <div>
-                        <div className="flex justify-between text-xs text-gray-500 mb-1">
-                          <span>Progress</span>
-                          <span>
-                            {list.items.filter(item => item.isCompleted).length}/{list.items.length}
-                          </span>
-                        </div>
-                        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-[#D62929] transition-all duration-300 rounded-full"
-                            style={{ width: `${calculateProgress(list)}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Action Button */}
+      <div className="p-4">
+        {error ? (
+          <div className="text-red-500 text-center">{error}</div>
+        ) : filteredLists.length === 0 ? (
+          <div className="text-center text-gray-500">No lists found</div>
+        ) : (
+          filteredLists.map((list) => (
+            <div
+              key={list._id}
+              className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4"
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex-1">
+                  <h2 className="text-lg font-medium text-gray-800">{list.title}</h2>
+                  <p className="text-sm text-gray-500">
+                    {list.items?.length || 0} items
+                  </p>
+                </div>
+                <div className="flex space-x-2">
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    onClick={() => {
                       setSelectedList(list);
                       setShowManageModal(true);
                     }}
-                    className="p-2 rounded-full hover:bg-gray-100 ml-4"
-                    title="Manage List"
+                    className="text-gray-400 hover:text-gray-600"
                   >
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      className="h-5 w-5 text-gray-600" 
-                      fill="none" 
-                      viewBox="0 0 24 24" 
-                      stroke="currentColor"
-                    >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                      />
-                    </svg>
+                    ⋮
                   </button>
                 </div>
               </div>
-            ))
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              {searchQuery ? 'No lists found matching your search' : 'No lists yet'}
+              <div
+                className="cursor-pointer"
+                onClick={() => navigate(`/lists/${list._id}`)}
+              >
+                <div className="bg-gray-200 rounded-full h-2 mb-1">
+                  <div
+                    className="bg-[#E4A76F] h-2 rounded-full"
+                    style={{ width: `${calculateProgress(list)}%` }}
+                  />
+                </div>
+                <div className="text-xs text-gray-500 text-right">
+                  {Math.round(calculateProgress(list))}% Complete
+                </div>
+              </div>
             </div>
-          )}
-        </div>
+          ))
+        )}
       </div>
 
+      {/* Modals */}
       {showAddModal && (
         <AddListModal
           onClose={() => setShowAddModal(false)}
           onSave={(newList) => {
             setLists([...lists, newList]);
+            setShowAddModal(false);
           }}
         />
       )}
@@ -472,8 +525,8 @@ const ListScreen = () => {
             setShowManageModal(false);
             setSelectedList(null);
           }}
-          onDelete={(listId) => {
-            setLists(lists.filter(l => l._id !== listId));
+          onDelete={(deletedListId) => {
+            setLists(lists.filter(list => list._id !== deletedListId));
             setShowManageModal(false);
             setSelectedList(null);
           }}

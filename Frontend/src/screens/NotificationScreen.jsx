@@ -1,33 +1,99 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from '../utils/axios';
 import BottomNavBar from '../components/BottomNavBar';
+import { formatDistanceToNow } from 'date-fns';
 
 const NotificationScreen = () => {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  
-  console.log('Rendering NotificationScreen');
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await axios.get('/api/notifications');
+      setNotifications(response.data);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatTime = (date) => {
+    try {
+      return formatDistanceToNow(new Date(date), { addSuffix: true });
+    } catch (error) {
+      // Fallback to basic date format if date-fns fails
+      return new Date(date).toLocaleDateString();
+    }
+  };
+
+  const handleNotificationClick = async (notification) => {
+    try {
+      // Mark notification as read
+      await axios.patch(`/api/notifications/${notification._id}/read`);
+      
+      // If it's a shared list notification, navigate to the list
+      if (notification.type === 'LIST_SHARED' && notification.relatedList) {
+        navigate(`/lists/${notification.relatedList}`);
+      }
+
+      // Update notifications list
+      setNotifications(notifications.map(n => 
+        n._id === notification._id ? { ...n, read: true } : n
+      ));
+    } catch (error) {
+      console.error('Error handling notification:', error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header with red background */}
+      {/* Header */}
       <div className="bg-[#D62929] p-4">
-        <div className="flex items-center">
-          <button 
-            onClick={() => navigate(-1)}
-            className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/20 mr-3"
-          >
-            <img src="/src/assets/back.png" alt="Back" className="w-5 h-5 brightness-0 invert" />
-          </button>
-          <h1 className="text-[24px] font-bold text-white">Notifications</h1>
-        </div>
+        <h1 className="text-white text-xl font-semibold">Notifications</h1>
       </div>
 
-      {/* Empty State - Add padding bottom for navbar */}
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-64px-64px)]">
-        <h2 className="text-xl font-medium mb-2">No notifications yet</h2>
-        <p className="text-gray-500 text-center px-8">
-          You don't have any notification. When you get notifications about your shared lists, you'll see them here.
-        </p>
+      {/* Notifications List */}
+      <div className="p-4">
+        {loading ? (
+          <div className="flex justify-center items-center h-40">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D62929]"></div>
+          </div>
+        ) : notifications.length === 0 ? (
+          <div className="text-center text-gray-500 mt-8">
+            No notifications yet
+          </div>
+        ) : (
+          notifications.map((notification) => (
+            <div
+              key={notification._id}
+              onClick={() => handleNotificationClick(notification)}
+              className={`p-4 mb-4 rounded-lg shadow-sm border ${
+                notification.read ? 'bg-gray-50' : 'bg-white border-[#E4A76F]'
+              } cursor-pointer transition-colors hover:bg-gray-50`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <p className={`${notification.read ? 'text-gray-600' : 'text-gray-800 font-medium'}`}>
+                    {notification.message}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {formatTime(notification.createdAt)}
+                  </p>
+                </div>
+                {!notification.read && (
+                  <div className="w-2 h-2 rounded-full bg-[#E4A76F]"></div>
+                )}
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       <BottomNavBar />
@@ -35,4 +101,4 @@ const NotificationScreen = () => {
   );
 };
 
-export default NotificationScreen; 
+export default NotificationScreen;

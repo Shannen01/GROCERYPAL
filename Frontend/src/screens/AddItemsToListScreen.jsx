@@ -70,23 +70,15 @@ const AddItemsToListScreen = () => {
   const [items, setItems] = useState([]);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
 
   useEffect(() => {
     // Check if list came from create list screen
     if (location.state?.fromCreateList) {
       // Create a custom toast using the Toast component
-      toast(<Toast 
-        message="Welcome to Your New List!" 
-        subMessage="Start adding items to make your list awesome"
-        type="info"
-        onClose={() => toast.dismiss()}
-      />, {
-        position: "center",
-        autoClose: false,
-        hideProgressBar: true,
-        closeOnClick: false,
-        pauseOnHover: true,
-        draggable: false,
+      toast.success('List created successfully', {
+        position: "top-center",
+        autoClose: 3000
       });
     }
 
@@ -216,18 +208,11 @@ const AddItemsToListScreen = () => {
     try {
       const token = localStorage.getItem('userToken');
       
-      // Add debugging logs
-      console.log('Toggle request details:', {
-        listId: list._id,
-        itemId: itemId,
-        currentStatus: isCompleted,
-        newStatus: !isCompleted
-      });
-
       // Update the items state optimistically
-      setItems(items.map(item => 
-        item._id === itemId ? { ...item, isCompleted: !isCompleted } : item
-      ));
+      const updatedItems = items.map(item => 
+        item._id === itemId ? { ...item, isCompleted: !item.isCompleted } : item
+      );
+      setItems(updatedItems);
 
       // Make the API call with the correct endpoint format
       const response = await axios.patch(
@@ -241,17 +226,11 @@ const AddItemsToListScreen = () => {
         }
       );
 
-      // Log successful response
-      console.log('Toggle response:', response.data);
+      // Update the list with the latest data
+      setList(response.data);
 
     } catch (error) {
       console.error('Error updating item:', error);
-      console.error('Full error details:', {
-        listId: list._id,
-        itemId: itemId,
-        response: error.response?.data,
-        status: error.response?.status
-      });
       
       // Revert the optimistic update if the API call fails
       setItems(items.map(item => 
@@ -259,6 +238,34 @@ const AddItemsToListScreen = () => {
       ));
       
       toast.error('Failed to update item status');
+    }
+  };
+
+  const handleBackNavigation = async () => {
+    try {
+      // Get the current list state
+      const token = localStorage.getItem('userToken');
+      const response = await axios.get(
+        `http://localhost:3000/api/lists/${list._id}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      // Navigate back with the updated list state
+      navigate('/list', { 
+        state: { 
+          updatedList: response.data,
+          timestamp: new Date().getTime() 
+        },
+        replace: true  // Replace the current route to prevent back-button issues
+      });
+    } catch (error) {
+      console.error('Error saving list state:', error);
+      // Still navigate back even if there's an error
+      navigate('/list');
     }
   };
 
@@ -282,18 +289,6 @@ const AddItemsToListScreen = () => {
     }
   };
 
-  const handleShare = () => {
-    // Implement share functionality
-    toast.info('Share functionality coming soon!');
-  };
-
-  // Add this function to calculate progress
-  const calculateProgress = () => {
-    if (!items || items.length === 0) return 0;
-    const completedItems = items.filter(item => item.isCompleted).length;
-    return (completedItems / items.length) * 100;
-  };
-
   const handleDeleteItem = async (itemId) => {
     try {
       const token = localStorage.getItem('userToken');
@@ -308,6 +303,8 @@ const AddItemsToListScreen = () => {
       
       // Update local state by removing the deleted item
       setItems(items.filter(item => item._id !== itemId));
+      setShowDeleteConfirm(false);
+      setItemToDelete(null);
       toast.success('Item deleted successfully');
     } catch (error) {
       console.error('Error deleting item:', error);
@@ -354,6 +351,47 @@ const AddItemsToListScreen = () => {
     }
   };
 
+  const confirmDelete = (itemId) => {
+    setItemToDelete(itemId);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDone = async () => {
+    try {
+      const token = localStorage.getItem('userToken');
+      const completedItems = items.filter(item => item.isCompleted).map(item => item._id);
+      
+      // Update the list's completed status
+      const response = await axios.patch(
+        `http://localhost:3000/api/lists/${list._id}`,
+        {
+          isCompleted: true,
+          completedItems: completedItems
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      toast.success('List saved successfully');
+
+      // Navigate back to list screen with updated data
+      navigate('/list', { 
+        state: { 
+          updatedList: response.data,
+          timestamp: new Date().getTime() 
+        },
+        replace: true
+      });
+    } catch (error) {
+      console.error('Error saving list:', error);
+      toast.error('Failed to save list');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
       {/* Header */}
@@ -361,7 +399,7 @@ const AddItemsToListScreen = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <button 
-              onClick={() => navigate('/list')}
+              onClick={handleBackNavigation}
               className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/20 mr-3"
             >
               <img 
@@ -373,42 +411,13 @@ const AddItemsToListScreen = () => {
             <h1 className="text-[24px] font-bold text-white">{list?.title}</h1>
           </div>
           
-            <div className="flex items-center gap-4">
-            <button
-              onClick={handleShare}
-              className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center"
-            >
-              <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              className="w-5 h-5 text-white"
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor"
-              >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-              </svg>
-            </button>
-            </div>
-
+          <button
+            onClick={handleDone}
+            className="px-4 py-2 bg-white text-[#D62929] rounded-lg font-medium"
+          >
+            Done
+          </button>
         </div>
-
-        {/* Add Progress Bar Section */}
-        {items.length > 0 && (
-          <div className="mt-4">
-            <div className="flex justify-between text-white mb-2">
-              <span className="text-sm">Progress</span>
-              <span className="text-sm">
-                {items.filter(item => item.isCompleted).length}/{items.length} items
-              </span>
-            </div>
-            <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-white transition-all duration-300 rounded-full"
-                style={{ width: `${calculateProgress()}%` }}
-              />
-            </div>
-          </div>
-        )}
       </div>
 
         {/* Items List */}
@@ -452,7 +461,7 @@ const AddItemsToListScreen = () => {
               />
               )}
               <button
-              onClick={() => handleDeleteItem(item._id)}
+              onClick={() => confirmDelete(item._id)}
               className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center"
               >
               <svg 
@@ -587,28 +596,32 @@ const AddItemsToListScreen = () => {
         </>
       )}
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <>
           <div 
             className="fixed inset-0 bg-black bg-opacity-50 z-40"
-            onClick={() => setShowDeleteConfirm(false)}
+            onClick={() => {
+              setShowDeleteConfirm(false);
+              setItemToDelete(null);
+            }}
           />
-          <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 bg-white rounded-[20px] p-6 z-50 max-w-md mx-auto">
-            <h2 className="text-xl font-bold mb-4">Delete Selected Items</h2>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete the selected items? This action cannot be undone.
-            </p>
+          <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 bg-white rounded-[30px] p-6 z-50">
+            <h2 className="text-xl font-bold mb-4">Delete Item</h2>
+            <p className="text-gray-600 mb-6">Are you sure you want to delete this item?</p>
             <div className="flex justify-end gap-4">
               <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setItemToDelete(null);
+                }}
+                className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700"
               >
                 Cancel
               </button>
               <button
-                onClick={handleDeleteCheckedItems}
-                className="px-4 py-2 bg-[#D62929] text-white rounded-lg"
+                onClick={() => handleDeleteItem(itemToDelete)}
+                className="px-4 py-2 rounded-lg bg-[#D62929] text-white"
               >
                 Delete
               </button>

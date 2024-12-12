@@ -4,9 +4,11 @@ const connectDB = require('./config/db');
 const cors = require('cors');
 const path = require('path');
 const authRoutes = require('./routes/authRoutes');
-const listRoutes = require('./routes/listRoutes');
+const listRoutes = require('./routes/lists');
 const categoryRoutes = require('./routes/categoryRoutes');
 const profileRoutes = require('./routes/profileRoutes');
+const userRoutes = require('./routes/userRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 let server;
@@ -50,6 +52,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/lists', listRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Connect to database
 connectDB()

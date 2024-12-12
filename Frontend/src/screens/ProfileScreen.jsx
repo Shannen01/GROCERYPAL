@@ -120,6 +120,7 @@ const ProfileScreen = () => {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [toast, setToast] = useState(null);
   const [profile, setProfile] = useState({
     name: '',
@@ -336,6 +337,30 @@ const ProfileScreen = () => {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    try {
+      const response = await axios.delete('/api/users/delete-account');
+      if (response.data.success) {
+        // Clear local storage and redirect to login
+        localStorage.removeItem('userToken');
+        navigate('/login');
+      } else {
+        setToast({
+          type: 'error',
+          message: 'Error',
+          subMessage: 'Failed to delete account'
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      setToast({
+        type: 'error',
+        message: 'Error',
+        subMessage: error.response?.data?.message || 'Failed to delete account'
+      });
+    }
+  };
+
   return (
     <div 
       className="min-h-screen w-full bg-white relative"
@@ -470,6 +495,43 @@ const ProfileScreen = () => {
           </div>
         </div>
       </div>
+
+      {/* Delete Account Button */}
+      <div className="mt-8">
+        <button
+          onClick={() => setShowDeleteConfirm(true)}
+          className="w-full py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+        >
+          Delete Account
+        </button>
+      </div>
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteConfirm && (
+        <>
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-20" onClick={() => setShowDeleteConfirm(false)} />
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg p-6 w-[90%] max-w-[320px] z-30">
+            <h2 className="text-xl font-semibold mb-4">Delete Account</h2>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete your account? This action cannot be undone.
+            </p>
+            <div className="flex gap-4">
+              <button
+                className="flex-1 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="flex-1 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                onClick={handleDeleteAccount}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {showImageModal && (
         <ProfileImageModal 

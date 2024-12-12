@@ -7,7 +7,7 @@ import BottomNavBar from '../components/BottomNavBar';
 
 const calculateProgress = (list) => {
   if (!list.items || list.items.length === 0) return 0;
-  const completedItems = list.items.filter(item => item.isCompleted).length;
+  const completedItems = list.items.filter(item => item.checked).length;
   return (completedItems / list.items.length) * 100;
 };
 
@@ -488,21 +488,16 @@ const ListScreen = () => {
                   </button>
                 </div>
               </div>
-              <div
-                className="cursor-pointer"
-                onClick={() => navigate(`/add-items-to-list`, { 
-                  state: { list: list }
-                })}
-              >
-                <div className="bg-gray-200 rounded-full h-2 mb-1">
-                  <div
-                    className="bg-[#E4A76F] h-2 rounded-full"
+              <div className="flex items-center space-x-2 mt-2">
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div 
+                    className="bg-[#D62929] h-2.5 rounded-full" 
                     style={{ width: `${calculateProgress(list)}%` }}
-                  />
+                  ></div>
                 </div>
-                <div className="text-xs text-gray-500 text-right">
-                  {Math.round(calculateProgress(list))}% Complete
-                </div>
+                <span className="text-sm text-gray-600">
+                  {list.items.filter(item => item.checked).length}/{list.items.length}
+                </span>
               </div>
             </div>
           ))

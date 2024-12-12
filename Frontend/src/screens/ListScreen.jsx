@@ -465,9 +465,12 @@ const ListScreen = () => {
           <div className="text-center text-gray-500">No lists found</div>
         ) : (
           filteredLists.map((list) => (
-            <div
+            <div 
               key={list._id}
-              className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4"
+              className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4 cursor-pointer"
+              onClick={() => navigate(`/add-items-to-list`, { 
+                state: { list: list }
+              })}
             >
               <div className="flex justify-between items-start mb-2">
                 <div className="flex-1">
@@ -478,7 +481,8 @@ const ListScreen = () => {
                 </div>
                 <div className="flex space-x-2">
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent list navigation
                       setSelectedList(list);
                       setShowManageModal(true);
                     }}

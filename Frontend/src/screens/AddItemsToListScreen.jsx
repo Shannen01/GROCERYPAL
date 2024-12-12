@@ -352,67 +352,22 @@ const AddItemsToListScreen = () => {
     setShowDeleteConfirm(true);
   };
 
-  const handleDone = async () => {
-    try {
-      const token = localStorage.getItem('userToken');
-      const completedItems = items.filter(item => item.checked).map(item => item._id);
-      
-      // Update the list's completed status
-      const response = await axios.patch(
-        `http://localhost:3000/api/lists/${list._id}`,
-        {
-          isCompleted: true,
-          completedItems: completedItems
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      toast.success('List saved successfully');
-
-      // Navigate back to list screen with updated data
-      navigate('/list', { 
-        state: { 
-          updatedList: response.data,
-          timestamp: new Date().getTime() 
-        },
-        replace: true
-      });
-    } catch (error) {
-      console.error('Error saving list:', error);
-      toast.error('Failed to save list');
-    }
-  };
-
   return (
     <div className="min-h-screen bg-white flex flex-col">
       {/* Header */}
       <div className="bg-[#D62929] p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <button 
-              onClick={handleBackNavigation}
-              className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/20 mr-3"
-            >
-              <img 
-                src={backIcon} 
-                alt="Back" 
-                className="w-5 h-5 brightness-0 invert"
-              />
-            </button>
-            <h1 className="text-[24px] font-bold text-white">{list?.title}</h1>
-          </div>
-          
-          <button
-            onClick={handleDone}
-            className="px-4 py-2 bg-white text-[#D62929] rounded-lg font-medium"
+        <div className="flex items-center">
+          <button 
+            onClick={handleBackNavigation}
+            className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/20 mr-3"
           >
-            Done
+            <img 
+              src={backIcon} 
+              alt="Back" 
+              className="w-5 h-5 brightness-0 invert"
+            />
           </button>
+          <h1 className="text-[24px] font-bold text-white">{list?.title}</h1>
         </div>
       </div>
 

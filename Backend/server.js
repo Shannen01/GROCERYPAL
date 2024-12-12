@@ -16,9 +16,12 @@ let server;
 // CORS configuration
 app.use(cors({
     origin: function(origin, callback) {
-        const allowedOrigins = process.env.NODE_ENV === 'production' 
-            ? ['https://grocerypal.onrender.com']
-            : ['http://localhost:5175', 'http://localhost:5173'];
+        // Allow all origins during development
+        if (process.env.NODE_ENV !== 'production') {
+            return callback(null, true);
+        }
+
+        const allowedOrigins = ['https://grocerypal.onrender.com', 'http://localhost:5175', 'http://localhost:5173'];
         
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
@@ -49,7 +52,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/lists', listRoutes);
+app.use('/api/lists', listRoutes); // Ensure lists route is correctly registered
 app.use('/api/categories', categoryRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/users', userRoutes);

@@ -379,7 +379,13 @@ const ListScreen = () => {
           'Authorization': `Bearer ${token}`
         }
       });
-      setLists(response.data);
+
+      // Sort lists by most recently updated
+      const sortedLists = response.data.sort((a, b) => 
+        new Date(b.updatedAt) - new Date(a.updatedAt)
+      );
+
+      setLists(sortedLists);
     } catch (error) {
       console.error('Error fetching lists:', error);
       setError('Failed to load lists');

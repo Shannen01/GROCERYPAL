@@ -105,7 +105,7 @@ const ProfileImageModal = ({ onClose, currentImage, onImageUpload }) => {
             Cancel
           </button>
           <button 
-            className="flex-1 py-3 bg-[#E4A76F] text-white rounded-lg"
+            className="flex-1 py-3 bg-[#D62929] text-white rounded-lg"
             onClick={handleSave}
           >
             Save

@@ -79,6 +79,9 @@ const CreateListScreen = () => {
       }
 
       // Create the list with the final title
+      console.log('Token:', token);
+      console.log('Final Title:', finalTitle);
+      
       const response = await axios.post(
         'http://localhost:3000/api/lists',
         { 
@@ -86,7 +89,8 @@ const CreateListScreen = () => {
         },
         {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         }
       );

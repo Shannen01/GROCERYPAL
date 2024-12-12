@@ -198,17 +198,51 @@ router.delete('/:listId', protect, async (req, res) => {
   }
 });
 
-// GET recent lists (limit to 2)
+// GET all user lists
 router.get('/', protect, async (req, res) => {
   try {
-    const lists = await List.find({ user: req.user.id })
-      .sort({ createdAt: -1 }) // Sort by creation date, newest first
-      .limit(2); // Limit to 2 lists
-    
+    // Find all lists for the logged-in user, sorted by most recently updated
+    const lists = await List.find({ user: req.user._id })
+      .sort({ updatedAt: -1 }); // Sort by most recently updated
+
     res.json(lists);
   } catch (error) {
     console.error('Error fetching lists:', error);
     res.status(500).json({ message: 'Failed to fetch lists' });
+  }
+});
+
+// POST create a new list
+router.post('/', protect, async (req, res) => {
+  try {
+    console.log('Create list route hit');
+    console.log('Request body:', req.body);
+    console.log('User:', req.user);
+
+    const { title } = req.body;
+
+    // Validate title
+    if (!title || title.trim().length === 0) {
+      console.log('Invalid title');
+      return res.status(400).json({ message: 'List title is required' });
+    }
+
+    // Create new list
+    const newList = new List({
+      title: title.trim(),
+      user: req.user._id,  // Assuming the protect middleware adds the user to the request
+      items: [],
+      isCompleted: false
+    });
+
+    // Save the list
+    await newList.save();
+    console.log('List created successfully:', newList);
+
+    res.status(201).json(newList);
+  } catch (error) {
+    console.error('Error creating list:', error);
+    res.status(500).json({ message: 'Failed to create list', error: error.message });
   }
 });
 

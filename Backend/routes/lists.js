@@ -246,94 +246,51 @@ router.post('/', protect, async (req, res) => {
   }
 });
 
-// Share list with another user
+// POST share list with another user
 router.post('/:id/share', protect, async (req, res) => {
   try {
+    const { id } = req.params;
     const { recipientEmail } = req.body;
-    const listId = req.params.id;
 
-    console.log('Share list request:', { 
-      listId, 
-      recipientEmail, 
-      userId: req.user.id 
-    });
-
-    // Validate email format
-    if (!recipientEmail || !recipientEmail.includes('@')) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide a valid email address'
-      });
+    // Find the list to be shared
+    const originalList = await List.findById(id);
+    if (!originalList) {
+      return res.status(404).json({ message: 'List not found' });
     }
 
-    // Find recipient user
-    const recipientUser = await User.findOne({ email: recipientEmail });
-    if (!recipientUser) {
-      return res.status(404).json({
-        success: false,
-        message: 'The email address you entered does not exist in our system'
-      });
+    // Find the recipient user
+    const recipient = await User.findOne({ email: recipientEmail });
+    if (!recipient) {
+      return res.status(404).json({ message: 'Recipient user not found' });
     }
 
-    // Check if trying to share with self
-    if (recipientUser._id.toString() === req.user.id) {
-      return res.status(400).json({
-        success: false,
-        message: 'You cannot share a list with yourself'
-      });
+    // Prevent sharing with self
+    if (recipient._id.toString() === req.user._id.toString()) {
+      return res.status(400).json({ message: 'You cannot share a list with yourself' });
     }
 
-    // Find the list
-    const list = await List.findById(listId);
-    if (!list) {
-      return res.status(404).json({
-        success: false,
-        message: 'List not found'
-      });
-    }
-
-    // Check if user owns the list
-    if (list.user.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to share this list'
-      });
-    }
-
-    // Create a new list for the recipient
-    const sharedList = new List({
-      title: `${list.title} (Shared)`,
-      description: list.description,
-      user: recipientUser._id,
-      items: list.items,
-      category: list.category
-    });
-
-    await sharedList.save();
-
-    // Create notification for recipient
+    // Create a notification for the recipient
     const notification = new Notification({
-      recipient: recipientUser._id,
-      sender: req.user.id,
-      type: 'LIST_SHARED',
-      message: `${req.user.name} shared a list with you: ${list.title}`,
-      relatedList: sharedList._id,
-      read: false
+      user: recipient._id,
+      type: 'list_shared',
+      message: `${req.user.name} shared a list "${originalList.title}" with you`,
+      data: {
+        originalListId: originalList._id,
+        sharedBy: req.user._id,
+        listTitle: originalList.title,
+        listItems: originalList.items
+      }
     });
 
     await notification.save();
 
-    res.json({
-      success: true,
-      message: 'List shared successfully'
+    res.status(201).json({ 
+      message: 'List shared successfully', 
+      notificationId: notification._id 
     });
-
   } catch (error) {
     console.error('Error sharing list:', error);
-    res.status(500).json({
-      success: false,
-      message: 'An error occurred while sharing the list'
-    });
+    res.status(500).json({ message: 'Failed to share list' });
   }
 });
 

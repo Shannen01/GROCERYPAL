@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import searchIcon from '../assets/search-interface.png';
+import searchIcon from '../assets/search.png';
 import BottomNavBar from '../components/BottomNavBar';
 
 const calculateProgress = (list) => {
@@ -207,6 +207,29 @@ const ManageListModal = ({ onClose, list, onDelete }) => {
     }
   };
 
+  const handleCopyList = () => {
+    // Create a formatted string representation of the list
+    const listContent = `List: ${list.name}\n\nItems:\n${list.items.map((item, index) => 
+      `${index + 1}. ${item.name}${item.quantity ? ` (${item.quantity})` : ''}`
+    ).join('\n')}`;
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(listContent).then(() => {
+      toast.success('List copied to clipboard', {
+        position: "top-center",
+        autoClose: 2000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+      onClose();
+    }).catch(err => {
+      console.error('Failed to copy list:', err);
+      toast.error('Failed to copy list');
+    });
+  };
+
   return (
     <>
       {/* First Modal - Manage List */}
@@ -236,6 +259,13 @@ const ManageListModal = ({ onClose, list, onDelete }) => {
           >
             <span className="text-gray-400">👥</span>
             <span>Share</span>
+          </button>
+          <button 
+            className="w-full flex items-center gap-3 py-2 hover:bg-gray-50"
+            onClick={handleCopyList}
+          >
+            <span className="text-gray-400">📋</span>
+            <span>Copy</span>
           </button>
           <button 
             className="w-full flex items-center gap-3 py-2 hover:bg-gray-50 text-red-500"
@@ -414,6 +444,55 @@ const ListScreen = () => {
     );
   }, [lists, searchQuery]);
 
+  const handleShareList = async () => {
+    try {
+      const token = localStorage.getItem('userToken');
+      console.log('Token:', token); // Log the token
+      
+      if (!token) {
+        toast.error('Authentication token is missing. Please log in again.');
+        return;
+      }
+
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(recipientEmail)) {
+        toast.error('Please enter a valid email address');
+        return;
+      }
+
+      const response = await axios.post(
+        `http://localhost:3000/api/lists/${selectedList._id}/share`,
+        { recipientEmail },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      // Success toast
+      toast.success(`List shared with ${recipientEmail}`);
+      
+      // Reset modal state
+      setShowShareModal(false);
+      setRecipientEmail('');
+    } catch (error) {
+      console.error('Full share error:', error.response || error);
+      // Error handling
+      const errorMessage = error.response?.data?.message || 'Failed to share list';
+      toast.error(errorMessage);
+
+      // If unauthorized, prompt re-login
+      if (error.response?.status === 401) {
+        toast.error('Your session has expired. Please log in again.');
+        // Optional: Redirect to login or trigger logout
+        // navigate('/login');
+      }
+    }
+  };
+
   const handleShare = async () => {
     if (!recipientEmail) {
       toast.error('Please enter an email address');
@@ -441,12 +520,12 @@ const ListScreen = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="bg-[#D62929] p-4">
-        <h1 className="text-white text-xl font-semibold">My Lists</h1>
+      <div className="bg-[#D62929] p-4 pb-8">
+        <h1 className="text-white text-2xl font-bold">My Lists</h1>
       </div>
 
       {/* Search Bar */}
-      <div className="p-4">
+      <div className="p-4 -mt-4 bg-[#D62929]">
         <div className="relative">
           <input
             type="text"
@@ -538,6 +617,46 @@ const ListScreen = () => {
             setSelectedList(null);
           }}
         />
+      )}
+
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
+          <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 bg-white rounded-2xl p-4 z-50 max-w-md mx-auto">
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-xl font-semibold">Share this list</h2>
+              <button onClick={() => setShowShareModal(false)} className="text-gray-400 hover:text-gray-600">
+                ×
+              </button>
+            </div>
+
+            <p className="text-gray-600 text-sm mb-4">
+              Share this list with another GroceryPal user 🚀
+            </p>
+
+            <div className="relative mb-4">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                </svg>
+              </div>
+              <input
+                type="email"
+                value={recipientEmail}
+                onChange={(e) => setRecipientEmail(e.target.value)}
+                placeholder="Enter email address"
+                className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg"
+              />
+            </div>
+
+            <button
+              onClick={handleShareList}
+              style={{ backgroundColor: 'red', color: 'white' }}
+              className="w-full py-2 rounded-lg font-medium"
+            >
+              Share
+            </button>
+          </div>
+        </div>
       )}
 
       <BottomNavBar />

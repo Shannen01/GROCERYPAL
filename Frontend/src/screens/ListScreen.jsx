@@ -208,10 +208,29 @@ const ManageListModal = ({ onClose, list, onDelete }) => {
   };
 
   const handleCopyList = () => {
-    // Create a formatted string representation of the list
-    const listContent = `List: ${list.name}\n\nItems:\n${list.items.map((item, index) => 
-      `${index + 1}. ${item.name}${item.quantity ? ` (${item.quantity})` : ''}`
-    ).join('\n')}`;
+    // Debug: Log the entire list object
+    console.log('Full list object:', list);
+
+    // Safely access list properties with fallbacks
+    const listName = list?.name || list?.title || 'Unnamed List';
+    const listItems = list?.items || [];
+    const listCreatedAt = list?.createdAt || new Date().toISOString();
+
+    // Create a more detailed formatted string representation of the list
+    const listContent = `📋 ${listName}
+
+Items:
+${listItems.map((item, index) => {
+  // Handle different item states and formats
+  const itemName = item.name || 'Unnamed Item';
+  const itemQuantity = item.quantity ? `Qty: ${item.quantity}` : '';
+  const itemChecked = item.checked ? '✅' : '☐';
+  
+  return `${itemChecked} ${index + 1}. ${itemName} ${itemQuantity}`.trim();
+}).join('\n')}
+
+Created: ${new Date(listCreatedAt).toLocaleDateString()}
+Total Items: ${listItems.length}`;
 
     // Copy to clipboard
     navigator.clipboard.writeText(listContent).then(() => {

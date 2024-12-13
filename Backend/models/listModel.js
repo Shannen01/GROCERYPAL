@@ -33,6 +33,10 @@ const listSchema = new mongoose.Schema({
             default: false
         }
     }],
+    sharedWith: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }],
     createdAt: {
         type: Date,
         default: Date.now

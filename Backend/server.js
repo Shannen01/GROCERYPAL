@@ -51,12 +51,31 @@ if (!fs.existsSync(uploadsDir)) {
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
+console.log('Registering routes:');
+console.log('Auth routes:', authRoutes ? 'Registered' : 'Not Found');
+console.log('List routes:', listRoutes ? 'Registered' : 'Not Found');
+console.log('Category routes:', categoryRoutes ? 'Registered' : 'Not Found');
+console.log('Profile routes:', profileRoutes ? 'Registered' : 'Not Found');
+console.log('User routes:', userRoutes ? 'Registered' : 'Not Found');
+console.log('Notification routes:', notificationRoutes ? 'Registered' : 'Not Found');
+
 app.use('/api/auth', authRoutes);
-app.use('/api/lists', listRoutes); // Ensure lists route is correctly registered
+app.use('/api/lists', listRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/notifications', notificationRoutes);
+
+// Debug middleware to log all incoming requests
+app.use((req, res, next) => {
+    console.log('Incoming Request:', {
+        method: req.method,
+        path: req.path,
+        headers: req.headers,
+        body: req.body
+    });
+    next();
+});
 
 // Global error handling middleware
 app.use((err, req, res, next) => {

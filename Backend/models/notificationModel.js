@@ -1,5 +1,24 @@
 const mongoose = require('mongoose');
 
+const listItemSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true
+  },
+  quantity: {
+    type: String,
+    default: ''
+  },
+  unit: {
+    type: String,
+    default: ''
+  },
+  checked: {
+    type: Boolean,
+    default: false
+  }
+}, { _id: false });
+
 const notificationSchema = new mongoose.Schema({
   recipient: {
     type: mongoose.Schema.Types.ObjectId,
@@ -13,8 +32,8 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    required: true,
-    enum: ['LIST_SHARED']
+    enum: ['LIST_SHARED', 'LIST_ACCEPTED', 'LIST_REJECTED', 'FRIEND_REQUEST'],
+    required: true
   },
   message: {
     type: String,
@@ -25,24 +44,26 @@ const notificationSchema = new mongoose.Schema({
     ref: 'List'
   },
   listDetails: {
-    title: {
-      type: String,
-      required: true
-    },
-    items: [{
-      name: String,
-      quantity: String,
-      checked: Boolean
-    }]
+    title: String,
+    description: String,
+    category: String,
+    ownerName: String,
+    ownerEmail: String,
+    items: [listItemSchema],
+    createdAt: Date,
+    itemCount: Number
+  },
+  status: {
+    type: String,
+    enum: ['PENDING', 'ACCEPTED', 'REJECTED', 'ARCHIVED'],
+    default: 'PENDING'
   },
   read: {
     type: Boolean,
     default: false
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
   }
+}, { 
+  timestamps: true 
 });
 
 const Notification = mongoose.model('Notification', notificationSchema);

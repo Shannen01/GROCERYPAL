@@ -410,4 +410,116 @@ router.post('/:listId/share', protect, async (req, res, next) => {
   }
 });
 
+// POST accept a shared list
+router.post('/accept-shared', protect, async (req, res, next) => {
+  try {
+    const { notificationId, listId } = req.body;
+    const recipientId = req.user._id;
+
+    console.log('Accept Shared List Request:', { 
+      notificationId, 
+      listId, 
+      recipientId 
+    });
+
+    // Find the notification
+    const notification = await Notification.findById(notificationId);
+    if (!notification) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Notification not found' 
+      });
+    }
+
+    // Verify the notification is for this user
+    if (notification.recipient.toString() !== recipientId.toString()) {
+      return res.status(403).json({ 
+        success: false,
+        message: 'You are not authorized to accept this list' 
+      });
+    }
+
+    // Find the original list
+    const originalList = await List.findById(listId);
+    if (!originalList) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'List not found' 
+      });
+    }
+
+    // Find the sender (original list owner)
+    const sender = await User.findById(originalList.user);
+    if (!sender) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Sender not found' 
+      });
+    }
+
+    // Find the recipient user
+    const recipient = await User.findById(recipientId);
+    if (!recipient) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Recipient not found' 
+      });
+    }
+
+    // Create a new list for the recipient
+    const newList = new List({
+      title: originalList.title,
+      description: originalList.description,
+      user: recipientId,
+      category: originalList.category,
+      items: originalList.items.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+        checked: false  // Reset checked status
+      }))
+    });
+
+    await newList.save();
+
+    // Create a notification for the original sender
+    const senderNotification = new Notification({
+      type: 'LIST_ACCEPTED',
+      recipient: sender._id,
+      sender: recipientId,
+      message: `${recipient.name} accepted your shared list "${originalList.title}"`,
+      relatedList: originalList._id,
+      read: false
+    });
+
+    await senderNotification.save();
+
+    // Mark the original notification as read
+    notification.read = true;
+    await notification.save();
+
+    console.log('Shared list accepted successfully:', {
+      newListId: newList._id,
+      originalListId: listId,
+      recipientId,
+      senderNotificationId: senderNotification._id
+    });
+
+    res.status(200).json({ 
+      success: true,
+      message: 'List accepted successfully', 
+      newListId: newList._id 
+    });
+
+  } catch (error) {
+    console.error('Error accepting shared list:', {
+      error: error.message,
+      errorStack: error.stack,
+      requestBody: req.body
+    });
+    
+    next(error);
+  }
+});
+
 module.exports = router;

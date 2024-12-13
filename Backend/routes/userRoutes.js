@@ -8,6 +8,45 @@ const List = require('../models/listModel');
 // User profile routes
 router.route('/profile').put(protect, updateProfile);
 
+// Verify email for list sharing
+router.get('/verify-email', protect, async (req, res) => {
+  try {
+    const { email } = req.query;
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ 
+        isRegistered: false, 
+        message: 'Invalid email format' 
+      });
+    }
+
+    // Check if the email exists in the database
+    const user = await User.findOne({ email });
+    
+    if (user) {
+      // User exists and is registered
+      res.json({ 
+        isRegistered: true, 
+        userId: user._id 
+      });
+    } else {
+      // User is not registered
+      res.json({ 
+        isRegistered: false, 
+        message: 'Email not registered' 
+      });
+    }
+  } catch (error) {
+    console.error('Error verifying email:', error);
+    res.status(500).json({ 
+      isRegistered: false, 
+      message: 'Server error during email verification' 
+    });
+  }
+});
+
 // Delete user account
 router.delete('/delete-account', protect, async (req, res) => {
   try {

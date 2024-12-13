@@ -246,51 +246,167 @@ router.post('/', protect, async (req, res) => {
   }
 });
 
-// POST share list with another user
-router.post('/:id/share', protect, async (req, res) => {
+// POST share list with another registered user
+router.post('/:listId/share', protect, async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { listId } = req.params;
     const { recipientEmail } = req.body;
+    const senderId = req.user._id;
+
+    // Extensive logging for debugging
+    console.log('Share List Request - FULL DETAILS:', { 
+      listId, 
+      recipientEmail, 
+      senderId,
+      senderName: req.user.name,
+      senderEmail: req.user.email,
+      requestBody: req.body,
+      requestParams: req.params,
+      requestUser: req.user
+    });
+
+    // Validate inputs with more detailed checks
+    if (!recipientEmail || typeof recipientEmail !== 'string') {
+      console.error('Invalid recipient email:', recipientEmail);
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid recipient email',
+        details: {
+          recipientEmail,
+          type: typeof recipientEmail
+        }
+      });
+    }
 
     // Find the list to be shared
-    const originalList = await List.findById(id);
-    if (!originalList) {
-      return res.status(404).json({ message: 'List not found' });
+    let list;
+    try {
+      list = await List.findById(listId);
+    } catch (findError) {
+      console.error('Error finding list:', {
+        listId,
+        findError: findError.message,
+        findErrorStack: findError.stack
+      });
+      return next(new Error(`Database error while finding list: ${findError.message}`));
+    }
+
+    if (!list) {
+      console.error('List not found:', { listId });
+      return res.status(404).json({ 
+        success: false,
+        message: 'List not found',
+        details: { listId }
+      });
+    }
+
+    // Verify list ownership
+    if (list.user.toString() !== senderId.toString()) {
+      console.error('Unauthorized list share attempt:', {
+        listOwnerId: list.user.toString(),
+        currentUserId: senderId.toString()
+      });
+      return res.status(403).json({ 
+        success: false,
+        message: 'You do not have permission to share this list' 
+      });
     }
 
     // Find the recipient user
-    const recipient = await User.findOne({ email: recipientEmail });
-    if (!recipient) {
-      return res.status(404).json({ message: 'Recipient user not found' });
+    let recipientUser;
+    try {
+      recipientUser = await User.findOne({ email: recipientEmail });
+    } catch (userFindError) {
+      console.error('Error finding recipient user:', {
+        recipientEmail,
+        userFindError: userFindError.message,
+        userFindErrorStack: userFindError.stack
+      });
+      return next(new Error(`Database error while finding recipient: ${userFindError.message}`));
     }
 
-    // Prevent sharing with self
-    if (recipient._id.toString() === req.user._id.toString()) {
-      return res.status(400).json({ message: 'You cannot share a list with yourself' });
+    if (!recipientUser) {
+      console.error('Recipient user not found:', { recipientEmail });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Recipient user not found',
+        details: { recipientEmail }
+      });
     }
 
-    // Create a notification for the recipient
-    const notification = new Notification({
-      user: recipient._id,
-      type: 'list_shared',
-      message: `${req.user.name} shared a list "${originalList.title}" with you`,
-      data: {
-        originalListId: originalList._id,
-        sharedBy: req.user._id,
-        listTitle: originalList.title,
-        listItems: originalList.items
-      }
+    // Validate list items before creating notification
+    if (!list.items || !Array.isArray(list.items)) {
+      console.error('Invalid list items:', { 
+        listId, 
+        items: list.items,
+        itemsType: typeof list.items 
+      });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid list items',
+        details: { 
+          listId, 
+          items: list.items,
+          itemsType: typeof list.items 
+        }
+      });
+    }
+
+    // Create a notification for the shared list
+    let notification;
+    try {
+      notification = new Notification({
+        recipient: recipientUser._id,
+        sender: senderId,
+        type: 'LIST_SHARED',
+        message: `${req.user.name} shared a list "${list.title}" with you`,
+        relatedList: list._id,
+        listDetails: {
+          title: list.title,
+          items: list.items.map(item => ({
+            name: item.name || '',
+            quantity: item.quantity || '',
+            checked: item.checked || false
+          }))
+        }
+      });
+
+      await notification.save();
+    } catch (notificationError) {
+      console.error('Error creating notification:', {
+        notificationError: notificationError.message,
+        notificationErrorStack: notificationError.stack,
+        notificationData: {
+          recipient: recipientUser._id,
+          sender: senderId,
+          listTitle: list.title
+        }
+      });
+      return next(new Error(`Failed to create notification: ${notificationError.message}`));
+    }
+
+    console.log('List shared successfully:', {
+      notificationId: notification._id,
+      recipientId: recipientUser._id,
+      listTitle: list.title
     });
 
-    await notification.save();
-
-    res.status(201).json({ 
+    res.status(200).json({ 
+      success: true,
       message: 'List shared successfully', 
       notificationId: notification._id 
     });
+
   } catch (error) {
-    console.error('Error sharing list:', error);
-    res.status(500).json({ message: 'Failed to share list' });
+    console.error('Unhandled error in share list route:', {
+      error: error.message,
+      errorStack: error.stack,
+      requestBody: req.body,
+      requestParams: req.params
+    });
+    
+    // Pass to global error handler
+    next(error);
   }
 });
 

@@ -19,8 +19,14 @@ const listSchema = new mongoose.Schema({
         ref: 'Category'
     },
     items: [{
-        name: String,
-        quantity: Number,
+        name: {
+            type: String,
+            required: true
+        },
+        quantity: {
+            type: String,
+            default: ''
+        },
         unit: String,
         checked: {
             type: Boolean,

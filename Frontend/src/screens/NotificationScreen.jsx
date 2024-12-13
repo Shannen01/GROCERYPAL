@@ -33,6 +33,49 @@ const NotificationScreen = () => {
     }
   };
 
+  const renderNotificationContent = (notification) => {
+    switch (notification.type) {
+      case 'LIST_SHARED':
+        return (
+          <div>
+            <p className={`${notification.read ? 'text-gray-600' : 'text-gray-800 font-medium'}`}>
+              {notification.message}
+            </p>
+            <div>
+              <p className="font-semibold">List Details:</p>
+              <p className="text-gray-600">Title: {notification.listDetails.title}</p>
+              <div className="mt-2">
+                <p className="font-medium">Items:</p>
+                <ul className="list-disc pl-5">
+                  {notification.listDetails.items.map((item, index) => (
+                    <li 
+                      key={index} 
+                      className={`${item.checked ? 'line-through text-gray-500' : ''}`}
+                    >
+                      {item.name} 
+                      {item.quantity && ` (${item.quantity})`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        );
+      // Add other notification types as needed
+      default:
+        return (
+          <div>
+            <p className={`${notification.read ? 'text-gray-600' : 'text-gray-800 font-medium'}`}>
+              {notification.message}
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              {formatTime(notification.createdAt)}
+            </p>
+          </div>
+        );
+    }
+  };
+
   const handleNotificationClick = async (notification) => {
     try {
       // Mark notification as read
@@ -78,19 +121,7 @@ const NotificationScreen = () => {
                 notification.read ? 'bg-gray-50' : 'bg-white border-[#E4A76F]'
               } cursor-pointer transition-colors hover:bg-gray-50`}
             >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className={`${notification.read ? 'text-gray-600' : 'text-gray-800 font-medium'}`}>
-                    {notification.message}
-                  </p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {formatTime(notification.createdAt)}
-                  </p>
-                </div>
-                {!notification.read && (
-                  <div className="w-2 h-2 rounded-full bg-[#E4A76F]"></div>
-                )}
-              </div>
+              {renderNotificationContent(notification)}
             </div>
           ))
         )}

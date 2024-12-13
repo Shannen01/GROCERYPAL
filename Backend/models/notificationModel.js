@@ -24,6 +24,17 @@ const notificationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'List'
   },
+  listDetails: {
+    title: {
+      type: String,
+      required: true
+    },
+    items: [{
+      name: String,
+      quantity: String,
+      checked: Boolean
+    }]
+  },
   read: {
     type: Boolean,
     default: false

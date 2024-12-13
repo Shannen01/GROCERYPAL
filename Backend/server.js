@@ -58,6 +58,42 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/notifications', notificationRoutes);
 
+// Global error handling middleware
+app.use((err, req, res, next) => {
+    console.error('Global Error Handler:', {
+        message: err.message,
+        stack: err.stack,
+        method: req.method,
+        path: req.path,
+        body: req.body,
+        headers: req.headers
+    });
+
+    // Determine the status code
+    const statusCode = err.status || 500;
+
+    res.status(statusCode).json({
+        success: false,
+        message: err.message || 'An unexpected error occurred',
+        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    });
+});
+
+// 404 handler for undefined routes
+app.use((req, res, next) => {
+    console.warn('Undefined Route Accessed:', {
+        method: req.method,
+        path: req.path,
+        body: req.body,
+        headers: req.headers
+    });
+
+    res.status(404).json({
+        success: false,
+        message: 'Route not found'
+    });
+});
+
 // Connect to database
 connectDB()
     .then(() => {

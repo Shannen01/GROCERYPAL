@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { toast } from 'react-toastify';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import searchIcon from '../assets/search.png';
 import BottomNavBar from '../components/BottomNavBar';
 
@@ -88,27 +89,73 @@ const ShareModal = ({ onClose, list }) => {
     setError('');
 
     try {
+      // Get the token from localStorage
+      const token = localStorage.getItem('userToken');
+      
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        setError('Please enter a valid email address');
+        setIsSharing(false);
+        return;
+      }
+
       console.log('Sharing list:', { 
         listId: list._id, 
-        recipientEmail: email 
+        recipientEmail: email,
+        listTitle: list.title
       });
 
       const response = await axios.post(`/api/lists/${list._id}/share`, {
         recipientEmail: email
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
 
-      if (response.data.success) {
-        toast.success('List shared successfully');
+      // More comprehensive response handling
+      if (response.data && response.data.success) {
+        toast.success(`List "${list.title}" shared successfully with ${email}`);
         onClose();
+      } else {
+        // Handle unexpected response structure
+        throw new Error(response.data.message || 'Unknown error occurred');
       }
     } catch (error) {
-      console.error('Full error details:', {
+      console.error('Full share list error details:', {
         response: error.response,
         request: error.request,
-        message: error.message
+        message: error.message,
+        stack: error.stack
       });
 
-      setError(error.response?.data?.message || 'Failed to share list');
+      // Detailed error handling
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        const errorMessage = error.response.data.message || 
+                             error.response.data.details?.message || 
+                             'Failed to share list';
+        
+        setError(errorMessage);
+        
+        // Log additional details for debugging
+        console.error('Server error details:', {
+          status: error.response.status,
+          data: error.response.data
+        });
+      } else if (error.request) {
+        // The request was made but no response was received
+        setError('No response received from server. Please check your connection.');
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        setError(error.message || 'An unexpected error occurred');
+      }
     } finally {
       setIsSharing(false);
     }
@@ -208,11 +255,11 @@ const ManageListModal = ({ onClose, list, onDelete }) => {
   };
 
   const handleCopyList = () => {
-    // Debug: Log the entire list object
-    console.log('Full list object:', list);
+    // Debug: Log list object to understand its structure
+    console.log('List object:', list);
 
-    // Safely access list properties with fallbacks
-    const listName = list?.name || list?.title || 'Unnamed List';
+    // More robust list name extraction
+    const listName = (list?.name || list?.title || 'Unnamed List').toString().trim();
     const listItems = list?.items || [];
     const listCreatedAt = list?.createdAt || new Date().toISOString();
 
@@ -232,21 +279,49 @@ ${listItems.map((item, index) => {
 Created: ${new Date(listCreatedAt).toLocaleDateString()}
 Total Items: ${listItems.length}`;
 
-    // Copy to clipboard
-    navigator.clipboard.writeText(listContent).then(() => {
-      toast.success('List copied to clipboard', {
-        position: "top-center",
-        autoClose: 2000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
-      onClose();
-    }).catch(err => {
-      console.error('Failed to copy list:', err);
+    // Attempt to copy to clipboard
+    try {
+      // Use Clipboard API with fallback
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(listContent)
+          .then(() => {
+            // Ensure toast is shown on the screen
+            toast.success(`List "${listName}" copied successfully!`, {
+              position: "top-center",
+              autoClose: 2000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+            });
+            onClose();
+          })
+          .catch((err) => {
+            toast.error('Failed to copy list');
+          });
+      } else {
+        // Fallback method if Clipboard API is not available
+        const textArea = document.createElement('textarea');
+        textArea.value = listContent;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        // Ensure toast is shown on the screen
+        toast.success(`List "${listName}" copied successfully!`, {
+          position: "top-center",
+          autoClose: 2000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+        onClose();
+      }
+    } catch (err) {
       toast.error('Failed to copy list');
-    });
+    }
   };
 
   return (
@@ -466,11 +541,10 @@ const ListScreen = () => {
   const handleShareList = async () => {
     try {
       const token = localStorage.getItem('userToken');
-      console.log('Token:', token); // Log the token
+      console.log('Sharing list with token:', token); // Detailed logging
       
       if (!token) {
-        toast.error('Authentication token is missing. Please log in again.');
-        return;
+        throw new Error('No authentication token found');
       }
 
       // Basic email validation
@@ -480,6 +554,24 @@ const ListScreen = () => {
         return;
       }
 
+      // First, verify if the recipient email is a registered user
+      const verifyResponse = await axios.get(
+        `http://localhost:3000/api/users/verify-email?email=${encodeURIComponent(recipientEmail)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      // Check if the user is registered
+      if (!verifyResponse.data.isRegistered) {
+        toast.error('The email is not registered. List can only be shared with registered users.');
+        return;
+      }
+
+      // If user is registered, proceed with sharing
       const response = await axios.post(
         `http://localhost:3000/api/lists/${selectedList._id}/share`,
         { recipientEmail },
@@ -499,15 +591,36 @@ const ListScreen = () => {
       setRecipientEmail('');
     } catch (error) {
       console.error('Full share error:', error.response || error);
-      // Error handling
-      const errorMessage = error.response?.data?.message || 'Failed to share list';
-      toast.error(errorMessage);
-
-      // If unauthorized, prompt re-login
-      if (error.response?.status === 401) {
-        toast.error('Your session has expired. Please log in again.');
-        // Optional: Redirect to login or trigger logout
-        // navigate('/login');
+      
+      // Detailed error handling
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        const errorMessage = error.response.data.message || 'Failed to share list';
+        
+        switch (error.response.status) {
+          case 400:
+            toast.error(errorMessage);
+            break;
+          case 401:
+            toast.error('Authentication failed. Please log in again.');
+            // Optional: Redirect to login or trigger logout
+            break;
+          case 403:
+            toast.error('You do not have permission to share this list.');
+            break;
+          case 404:
+            toast.error('List not found.');
+            break;
+          default:
+            toast.error(errorMessage);
+        }
+      } else if (error.request) {
+        // The request was made but no response was received
+        toast.error('No response from server. Please check your network connection.');
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        toast.error('Error setting up the share request.');
       }
     }
   };
@@ -677,6 +790,19 @@ const ListScreen = () => {
           </div>
         </div>
       )}
+
+      {/* Toast Container */}
+      <ToastContainer 
+        position="top-center"
+        autoClose={2000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
 
       <BottomNavBar />
     </div>

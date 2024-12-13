@@ -11,7 +11,17 @@ router.get('/', protect, async (req, res) => {
       .populate('sender', 'name email')
       .populate('relatedList', 'title');
 
-    res.json(notifications);
+    // Transform notifications to include full details
+    const transformedNotifications = notifications.map(notification => ({
+      ...notification.toObject(),
+      // Ensure listDetails are included even if not populated
+      listDetails: notification.listDetails || {
+        title: notification.relatedList?.title || 'Unnamed List',
+        items: []
+      }
+    }));
+
+    res.json(transformedNotifications);
   } catch (error) {
     console.error('Error fetching notifications:', error);
     res.status(500).json({ message: 'Error fetching notifications' });

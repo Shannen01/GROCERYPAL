@@ -370,9 +370,9 @@ const NotificationScreen = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F5F5]">
+    <div className="flex flex-col h-screen">
       {/* Header */}
-      <div className="bg-[#D62929] p-4 mb-4 shadow-sm">
+      <div className="bg-[#D62929] p-4 shadow-sm">
         <div className="flex items-center">
           <button 
             onClick={() => navigate('/list')}
@@ -389,24 +389,32 @@ const NotificationScreen = () => {
       </div>
 
       {/* Notifications Container */}
-      <div className="px-4">
-        {notifications.length === 0 ? (
-          <div className="text-center text-gray-500 mt-10">
-            <p>No notifications</p>
+      <div className="flex-grow overflow-y-auto">
+        {loading ? (
+          <div className="flex justify-center items-center h-full">
+            <p>Loading notifications...</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {notifications.map(notification => (
-              <div 
-                key={notification._id} 
-                className="transition-all duration-200 ease-in-out"
-              >
-                {renderNotificationContent(notification)}
+          <div className="p-4">
+            {notifications.length === 0 ? (
+              <p className="text-center text-gray-500">No notifications</p>
+            ) : (
+              <div className="space-y-4">
+                {notifications.map((notification) => (
+                  <div 
+                    key={notification._id} 
+                    className="transition-all duration-200 ease-in-out"
+                  >
+                    {renderNotificationContent(notification)}
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>
+      
+      <BottomNavBar />
     </div>
   );
 };

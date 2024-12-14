@@ -115,7 +115,12 @@ router.get('/:listId', protect, async (req, res) => {
 router.post('/:listId/items', protect, async (req, res) => {
   try {
     const { listId } = req.params;
-    const { name, quantity, category } = req.body;
+    const { 
+      name, 
+      quantity, 
+      category, 
+      categoryDetails 
+    } = req.body;
     
     // Validate required fields
     if (!name || name.trim().length === 0) {
@@ -128,12 +133,17 @@ router.post('/:listId/items', protect, async (req, res) => {
       return res.status(404).json({ message: 'List not found' });
     }
 
-    // Create new item
+    // Create new item with category details
     const newItem = {
       name: name.trim(),
       quantity: quantity || '',
-      category: category || '',
-      isCompleted: false
+      category: category || 'uncategorized',
+      categoryDetails: categoryDetails || {
+        id: 'uncategorized',
+        name: 'Uncategorized',
+        image: null
+      },
+      checked: false
     };
 
     // Add item to list
@@ -143,7 +153,7 @@ router.post('/:listId/items', protect, async (req, res) => {
     res.status(201).json(list);
   } catch (error) {
     console.error('Error adding item to list:', error);
-    res.status(500).json({ message: 'Failed to add item to list' });
+    res.status(500).json({ message: 'Failed to add item to list', error: error.message });
   }
 });
 
@@ -203,7 +213,7 @@ router.get('/', protect, async (req, res) => {
   try {
     // Find all lists for the logged-in user, sorted by most recently updated
     const lists = await List.find({ user: req.user._id })
-      .sort({ updatedAt: -1 }); // Sort by most recently updated
+      .sort({ updatedAt: -1, createdAt: -1 }); // Sort by most recently updated
 
     res.json(lists);
   } catch (error) {
@@ -237,6 +247,9 @@ router.post('/', protect, async (req, res) => {
 
     // Save the list
     await newList.save();
+    newList.updatedAt = new Date();
+    await newList.save();
+
     console.log('List created successfully:', newList);
 
     res.status(201).json(newList);

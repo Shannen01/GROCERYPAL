@@ -4,58 +4,91 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import Toast from '../components/Toast';
 
-// Make sure these image files exist in your assets folder
-import fruitsIcon from '../assets/Fruits.png';
-import vegetableIcon from '../assets/vegetable.png';
-import snacksIcon from '../assets/Snacks.png';
-import meatIcon from '../assets/Meat.png';
-import iceCreamIcon from '../assets/ice cream.png';
-import frozenIcon from '../assets/frozen.png';
-import eggIcon from '../assets/Egg.png';
-import dairyIcon from '../assets/dairy.png';
-import chickenIcon from '../assets/Chicken.png';
-import seafoodIcon from '../assets/Seafood.png';
-import condimentsIcon from '../assets/condiments.png';
-import personalCareIcon from '../assets/PersonalCare.png';
-import petFoodIcon from '../assets/pet-food.png';
-import babyFoodIcon from '../assets/Baby food.png';
+// Import default fallback image
+import DefaultCategoryIcon from '../assets/PantryPal.png';
+
+// Import all category images
+import BabyFoodIcon from '../assets/Baby food.png';
+import BeansIcon from '../assets/Beans.png';
+import BeveragesIcon from '../assets/beverages.png';
+import BreadIcon from '../assets/Bread.png';
+import CannedGoodsIcon from '../assets/canned-goods.png';
+import ChickenIcon from '../assets/Chicken.png';
+import CondimentsIcon from '../assets/condiments.png';
+import DairyIcon from '../assets/dairy.png';
+import EggIcon from '../assets/Egg.png';
+import FrozenIcon from '../assets/frozen.png';
+import FruitsIcon from '../assets/Fruits.png';
+import IceCreamIcon from '../assets/ice cream.png';
+import MeatIcon from '../assets/Meat.png';
+import PersonalCareIcon from '../assets/PersonalCare.png';
+import PetFoodIcon from '../assets/pet-food.png';
+import SeafoodIcon from '../assets/Seafood.png';
+import VegetableIcon from '../assets/vegetable.png';
 import backIcon from '../assets/back.png';
 import deleteIcon from '../assets/delete.png';  // Make sure this file exists
 import shareIcon from '../assets/share.png';    // Make sure this file exists
 
 console.log('Category Images:', {
-  fruitsIcon,
-  vegetableIcon,
-  snacksIcon,
-  meatIcon,
-  iceCreamIcon,
-  frozenIcon,
-  eggIcon,
-  dairyIcon,
-  chickenIcon,
-  seafoodIcon,
-  condimentsIcon,
-  personalCareIcon,
-  petFoodIcon,
-  babyFoodIcon
+  FruitsIcon,
+  VegetableIcon,
+  BabyFoodIcon,
+  BeansIcon,
+  BeveragesIcon,
+  BreadIcon,
+  CannedGoodsIcon,
+  ChickenIcon,
+  CondimentsIcon,
+  DairyIcon,
+  EggIcon,
+  FrozenIcon,
+  IceCreamIcon,
+  MeatIcon,
+  PersonalCareIcon,
+  PetFoodIcon,
+  SeafoodIcon
 });
 
 const PREDEFINED_CATEGORIES = [
-  { id: 'fruits', name: 'Fruits', image: fruitsIcon },
-  { id: 'vegetables', name: 'Vegetables', image: vegetableIcon },
-  { id: 'snacks', name: 'Snacks', image: snacksIcon },
-  { id: 'meat', name: 'Meat', image: meatIcon },
-  { id: 'iceCream', name: 'Ice Cream', image: iceCreamIcon },
-  { id: 'frozen', name: 'Frozen', image: frozenIcon },
-  { id: 'eggs', name: 'Eggs', image: eggIcon },
-  { id: 'dairy', name: 'Dairy', image: dairyIcon },
-  { id: 'chicken', name: 'Chicken', image: chickenIcon },
-  { id: 'seafood', name: 'Seafood', image: seafoodIcon },
-  { id: 'condiments', name: 'Condiments', image: condimentsIcon },
-  { id: 'personalCare', name: 'Personal Care', image: personalCareIcon },
-  { id: 'petFood', name: 'Pet Food', image: petFoodIcon },
-  { id: 'babyFood', name: 'Baby Food', image: babyFoodIcon }
+  { id: 'fruits', name: 'Fruits', image: FruitsIcon },
+  { id: 'vegetables', name: 'Vegetables', image: VegetableIcon },
+  { id: 'babyFood', name: 'Baby Food', image: BabyFoodIcon },
+  { id: 'beans', name: 'Beans', image: BeansIcon },
+  { id: 'beverages', name: 'Beverages', image: BeveragesIcon },
+  { id: 'bread', name: 'Bread', image: BreadIcon },
+  { id: 'cannedGoods', name: 'Canned Goods', image: CannedGoodsIcon },
+  { id: 'chicken', name: 'Chicken', image: ChickenIcon },
+  { id: 'condiments', name: 'Condiments', image: CondimentsIcon },
+  { id: 'dairy', name: 'Dairy', image: DairyIcon },
+  { id: 'eggs', name: 'Eggs', image: EggIcon },
+  { id: 'frozen', name: 'Frozen', image: FrozenIcon },
+  { id: 'iceCream', name: 'Ice Cream', image: IceCreamIcon },
+  { id: 'meat', name: 'Meat', image: MeatIcon },
+  { id: 'personalCare', name: 'Personal Care', image: PersonalCareIcon },
+  { id: 'petFood', name: 'Pet Food', image: PetFoodIcon },
+  { id: 'seafood', name: 'Seafood', image: SeafoodIcon }
 ];
+
+// Create a mapping of category names to icons
+const CATEGORY_ICONS = {
+  'Baby Food': BabyFoodIcon,
+  'Beans': BeansIcon,
+  'Beverages': BeveragesIcon,
+  'Bread': BreadIcon,
+  'Canned Goods': CannedGoodsIcon,
+  'Chicken': ChickenIcon,
+  'Condiments': CondimentsIcon,
+  'Dairy': DairyIcon,
+  'Egg': EggIcon,
+  'Frozen': FrozenIcon,
+  'Fruits': FruitsIcon,
+  'Ice Cream': IceCreamIcon,
+  'Meat': MeatIcon,
+  'Personal Care': PersonalCareIcon,
+  'Pet Food': PetFoodIcon,
+  'Seafood': SeafoodIcon,
+  'Vegetable': VegetableIcon
+};
 
 const AddItemsToListScreen = () => {
   const navigate = useNavigate();
@@ -73,6 +106,9 @@ const AddItemsToListScreen = () => {
   const [itemToDelete, setItemToDelete] = useState(null);
 
   useEffect(() => {
+    // Log predefined categories at the top of the component
+    console.log('Predefined Categories:', PREDEFINED_CATEGORIES);
+
     // Check if list came from create list screen
     if (location.state?.fromCreateList) {
       // Create a custom toast using the Toast component
@@ -155,19 +191,67 @@ const AddItemsToListScreen = () => {
       return;
     }
 
+    // Validate category selection
+    if (!selectedCategory) {
+      toast.error('Please select a category');
+      return;
+    }
+
+    // For custom category, ensure a name is provided
+    if (selectedCategory === 'custom' && !customCategory.trim()) {
+      toast.error('Please enter a custom category name');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('userToken');
       
-      // Get the selected category details
-      const categoryDetails = PREDEFINED_CATEGORIES.find(cat => cat.id === selectedCategory);
-      console.log('Selected category details:', categoryDetails); // Debug log
-      
+      // Detailed logging of category selection
+      console.log('Category Selection Details:', {
+        selectedCategory,
+        customCategory,
+        allPredefinedCategories: PREDEFINED_CATEGORIES
+      });
+
+      // Determine category details
+      let categoryToSave = selectedCategory;
+      let categoryDetailsToSave = null;
+
+      if (selectedCategory === 'custom') {
+        // For custom category
+        categoryToSave = customCategory.trim();
+        categoryDetailsToSave = { 
+          id: 'custom', 
+          name: categoryToSave, 
+          image: null 
+        };
+      } else {
+        // For predefined categories
+        const categoryDetails = PREDEFINED_CATEGORIES.find(cat => cat.id === selectedCategory);
+        
+        console.log('Found Category Details:', categoryDetails);
+
+        if (categoryDetails) {
+          categoryDetailsToSave = {
+            id: categoryDetails.id,
+            name: categoryDetails.name,
+            image: categoryDetails.image
+          };
+        } else {
+          console.error('No category details found for:', selectedCategory);
+          toast.error('Invalid category selected');
+          return;
+        }
+      }
+
       const newItem = {
         name: itemName.trim(),
         quantity: quantity || '',
-        category: selectedCategory,
-        categoryIcon: categoryDetails?.icon // Include the category icon
+        category: categoryToSave,
+        categoryDetails: categoryDetailsToSave
       };
+
+      console.log('Attempting to add item:', newItem);
 
       const response = await axios.post(
         `http://localhost:3000/api/lists/${list._id}/items`,
@@ -180,26 +264,53 @@ const AddItemsToListScreen = () => {
         }
       );
 
-      // Update items with category icons
+      console.log('Server Response:', response.data);
+
+      // Update items with full category details
       if (response.data.items) {
         const updatedItems = response.data.items.map(item => {
-          const catDetails = PREDEFINED_CATEGORIES.find(cat => cat.id === item.category);
+          console.log('Processing Item:', item);
+
+          // Attempt to find category details
+          const catDetails = PREDEFINED_CATEGORIES.find(cat => 
+            cat.id === item.category || 
+            cat.name.toLowerCase() === (item.category || '').toLowerCase()
+          );
+
+          console.log('Matched Category Details:', catDetails);
+
+          // Fallback category details
+          const fallbackCategoryDetails = catDetails 
+            ? {
+                id: catDetails.id,
+                name: catDetails.name,
+                image: catDetails.image
+              }
+            : {
+                id: 'uncategorized',
+                name: 'Uncategorized',
+                image: null
+              };
+
           return {
             ...item,
-            categoryIcon: catDetails?.icon
+            categoryDetails: item.categoryDetails || fallbackCategoryDetails
           };
         });
+
         setItems(updatedItems);
       }
 
+      // Reset form
       setItemName('');
       setQuantity('');
       setSelectedCategory('');
+      setCustomCategory('');
       setShowModal(false);
 
       toast.success('Item added successfully');
     } catch (error) {
-      console.error('Error adding item:', error);
+      console.error('Error adding item:', error.response ? error.response.data : error);
       toast.error('Failed to add item');
     }
   };
@@ -301,6 +412,11 @@ const AddItemsToListScreen = () => {
 
       // Remove item from local state
       setItems(items.filter(item => item._id !== itemId));
+      
+      // Close delete confirmation modal
+      setShowDeleteConfirm(false);
+      setItemToDelete(null);
+      
       toast.success('Item removed');
     } catch (error) {
       console.error('Error deleting item:', error);
@@ -352,6 +468,64 @@ const AddItemsToListScreen = () => {
     setShowDeleteConfirm(true);
   };
 
+  const getCategoryIcon = (categoryDetails) => {
+    console.log('Getting Category Icon for:', categoryDetails);
+
+    // Ensure categoryDetails is an object
+    if (!categoryDetails || typeof categoryDetails !== 'object') {
+      console.warn('Invalid categoryDetails:', categoryDetails);
+      return DefaultCategoryIcon;
+    }
+
+    // First, check predefined categories by ID
+    const predefinedCategory = PREDEFINED_CATEGORIES.find(
+      cat => cat.id === categoryDetails.id
+    );
+
+    // If found in predefined, return its image
+    if (predefinedCategory) {
+      console.log('Found predefined category by ID:', predefinedCategory);
+      return predefinedCategory.image;
+    }
+
+    // Safely check for category name match
+    if (categoryDetails.name) {
+      // For custom categories, try to match by name
+      const matchedCategory = PREDEFINED_CATEGORIES.find(
+        cat => cat.name.toLowerCase() === categoryDetails.name.toLowerCase()
+      );
+
+      if (matchedCategory) {
+        console.log('Found predefined category by name:', matchedCategory);
+        return matchedCategory.image;
+      }
+
+      // Try to find an exact match in CATEGORY_ICONS
+      const normalizedName = categoryDetails.name
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (CATEGORY_ICONS[normalizedName]) {
+        console.log('Found category icon by exact name:', normalizedName);
+        return CATEGORY_ICONS[normalizedName];
+      }
+
+      // Try case-insensitive match
+      const caseInsensitiveMatch = Object.keys(CATEGORY_ICONS).find(
+        key => key.toLowerCase() === normalizedName.toLowerCase()
+      );
+
+      if (caseInsensitiveMatch) {
+        console.log('Found category icon by case-insensitive name:', caseInsensitiveMatch);
+        return CATEGORY_ICONS[caseInsensitiveMatch];
+      }
+    }
+
+    // Last resort: use default icon
+    console.warn('No category icon found, using default:', categoryDetails);
+    return DefaultCategoryIcon;
+  };
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
       {/* Header */}
@@ -375,59 +549,76 @@ const AddItemsToListScreen = () => {
         <div className="flex-1 bg-white px-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
         {items.length > 0 ? (
           <div className="space-y-4 py-4">
-          {items.map((item, index) => (
-            <div 
-            key={item._id || index} 
-            className="flex items-center justify-between bg-white rounded-[20px] p-4 shadow-md"
-            >
-            {/* Checkbox and Item Details */}
-            <div className="flex items-center flex-1">
-              <input 
-              type="checkbox"
-              checked={!!item.checked}
-              onChange={() => handleToggleItem(item._id, item.checked)}
-              className="form-checkbox h-6 w-6 text-[#D62929] rounded mr-4"
-              />
+          {items.map((item, index) => {
+            // Ensure categoryDetails exists
+            if (!item.categoryDetails) {
+              console.warn('Item missing categoryDetails:', item);
               
-              <div className="flex flex-col">
-              <span className={`text-xl font-semibold ${item.checked ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-                {item.name}
-                {item.quantity && (
-                <span className="ml-2 text-base text-gray-500">
-                  ({item.quantity})
-                </span>
-                )}
-              </span>
-              </div>
-            </div>
+              // Fallback category details
+              item.categoryDetails = {
+                id: item.category || 'uncategorized',
+                name: item.category || 'Uncategorized',
+                image: null
+              };
+            }
 
-            {/* Category Image and Delete Button */}
-            <div className="flex items-center gap-2">
-              {item.category && (
-              <img 
-                src={PREDEFINED_CATEGORIES.find(cat => cat.id === item.category)?.image}
-                alt={item.category}
-                className="w-7 h-7 object-contain"
-                onError={(e) => e.target.style.display = 'none'}
-              />
-              )}
-              <button
-              onClick={() => confirmDelete(item._id)}
-              className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center"
+            return (
+              <div 
+                key={item._id || index} 
+                className={`flex items-center justify-between bg-white rounded-[20px] p-4 shadow-md ${item.checked ? 'opacity-50' : ''}`}
               >
-              <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                className="w-4 h-4 text-[#D62929]"
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              </button>
-            </div>
-            </div>
-          ))}
+                {/* Checkbox and Item Details */}
+                <div className="flex items-center flex-1">
+                  <input 
+                    type="checkbox"
+                    checked={!!item.checked}
+                    onChange={() => handleToggleItem(item._id, item.checked)}
+                    className="form-checkbox h-6 w-6 text-[#D62929] rounded mr-4"
+                  />
+                  
+                  <div className="flex flex-col flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xl font-semibold ${item.checked ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                        {item.name}
+                        {item.quantity && (
+                          <span className="ml-2 text-base text-gray-500">
+                            ({item.quantity})
+                          </span>
+                        )}
+                      </span>
+
+                      {/* Category Display - Icon Only */}
+                      <img 
+                        src={getCategoryIcon(item.categoryDetails)}
+                        alt={item.categoryDetails.name || 'Category Icon'}
+                        className="w-8 h-8 object-contain mr-1"
+                        onError={(e) => {
+                          console.error('Failed to load category icon for:', item.categoryDetails);
+                          e.target.src = DefaultCategoryIcon;
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Delete Button */}
+                <button
+                  onClick={() => confirmDelete(item._id)}
+                  className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center"
+                >
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className="w-4 h-4 text-[#D62929]"
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+            );
+          })}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
@@ -492,49 +683,101 @@ const AddItemsToListScreen = () => {
                 <label className="block text-gray-700 text-sm font-bold mb-2">
                   Select Category
                 </label>
-                {/* Add a container with fixed height and scrolling */}
-                <div className="max-h-[300px] overflow-y-auto">
-                  <div className="grid grid-cols-4 gap-2 p-1">
-                    {PREDEFINED_CATEGORIES.map((category) => (
-                      <button
-                        key={category.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedCategory(category.id);
-                        }}
-                        className={`flex flex-col items-center p-2 rounded-lg ${
-                          selectedCategory === category.id 
-                            ? 'bg-[#D62929] text-white' 
-                            : 'bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        <img 
-                          src={category.image} 
-                          alt={category.name} 
-                          className="w-8 h-8 mb-1 object-contain"
-                        />
-                        <span className="text-xs text-center">{category.name}</span>
-                      </button>
-                    ))}
+
+                {/* Selected Category Preview */}
+                {selectedCategory && selectedCategory !== 'custom' && (
+                  <div className="flex items-center space-x-3 bg-gray-100 p-3 rounded-lg mb-4">
+                    <img 
+                      src={PREDEFINED_CATEGORIES.find(cat => cat.id === selectedCategory)?.image}
+                      alt="Selected Category" 
+                      className="w-12 h-12 object-contain"
+                    />
+                    <div>
+                      <p className="font-semibold text-gray-800">
+                        {PREDEFINED_CATEGORIES.find(cat => cat.id === selectedCategory)?.name}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Selected Category
+                      </p>
+                    </div>
                   </div>
+                )}
+
+                {/* Custom Category Input */}
+                {selectedCategory === 'custom' && (
+                  <div className="mb-4">
+                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                      Custom Category Name
+                    </label>
+                    <input
+                      type="text"
+                      value={customCategory || ''}
+                      onChange={(e) => setCustomCategory(e.target.value)}
+                      placeholder="Enter custom category"
+                      className="w-full p-3 border border-gray-200 rounded-lg"
+                    />
+                  </div>
+                )}
+
+                {/* Category Grid */}
+                <div className="grid grid-cols-4 gap-2">
+                  {PREDEFINED_CATEGORIES.map((category) => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategory(category.id);
+                        setCustomCategory(''); // Clear custom category if predefined is selected
+                      }}
+                      className={`
+                        flex flex-col items-center p-2 rounded-lg 
+                        transition-all duration-200 ease-in-out
+                        ${selectedCategory === category.id 
+                          ? 'bg-[#D62929] text-white scale-105 shadow-md' 
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}
+                      `}
+                    >
+                      <img 
+                        src={category.image} 
+                        alt={category.name} 
+                        className="w-8 h-8 mb-1 object-contain"
+                      />
+                      <span className="text-xs text-center">{category.name}</span>
+                    </button>
+                  ))}
+                  
+                  {/* Custom Category Option */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategory('custom');
+                    }}
+                    className={`
+                      flex flex-col items-center p-2 rounded-lg 
+                      transition-all duration-200 ease-in-out
+                      ${selectedCategory === 'custom' 
+                        ? 'bg-[#D62929] text-white scale-105 shadow-md' 
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}
+                    `}
+                  >
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      className="w-8 h-8 mb-1"
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                    <span className="text-xs text-center">Custom</span>
+                  </button>
                 </div>
               </div>
-
-              {/* Custom Category Input */}
-              {selectedCategory === 'custom' && (
-                <div className="mb-4">
-                  <label className="block text-gray-700 text-sm font-bold mb-2">
-                    Custom Category Name
-                  </label>
-                  <input
-                    type="text"
-                    value={customCategory || ''}
-                    onChange={(e) => setCustomCategory(e.target.value)}
-                    placeholder="Enter custom category"
-                    className="w-full p-3 border border-gray-200 rounded-lg"
-                  />
-                </div>
-              )}
 
               <button
                 onClick={handleAddItem}

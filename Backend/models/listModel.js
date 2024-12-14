@@ -31,16 +31,36 @@ const listSchema = new mongoose.Schema({
         checked: {
             type: Boolean,
             default: false
+        },
+        category: {
+            type: String,
+            default: 'uncategorized'
+        },
+        categoryDetails: {
+            id: {
+                type: String,
+                default: 'uncategorized'
+            },
+            name: {
+                type: String,
+                default: 'Uncategorized'
+            },
+            image: {
+                type: String,
+                default: null
+            }
         }
     }],
     sharedWith: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     }],
-    createdAt: {
-        type: Date,
-        default: Date.now
+    isCompleted: {
+        type: Boolean,
+        default: false
     }
+}, {
+    timestamps: true  // This adds createdAt and updatedAt fields
 });
 
 const List = mongoose.model('List', listSchema);

@@ -206,7 +206,7 @@ const ShareModal = ({ onClose, list }) => {
           className={`w-full py-2 rounded-lg font-medium ${
             isSharing 
               ? 'bg-gray-400 text-white cursor-not-allowed'
-              : 'bg-[#E4A76F] text-white hover:bg-[#d69a62]'
+              : 'bg-[#CC0000] text-white hover:bg-[#FF0000]'
           }`}
         >
           {isSharing ? 'Sharing...' : 'Share'}

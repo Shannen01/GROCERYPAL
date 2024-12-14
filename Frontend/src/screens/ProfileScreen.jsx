@@ -516,10 +516,10 @@ const ProfileScreen = () => {
       </div>
 
       {/* Delete Account Button */}
-      <div className="mt-8">
+      <div className="mt-8 flex justify-center">
         <button
           onClick={() => setShowDeleteConfirm(true)}
-          className="w-full py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          className="w-3/4 mx-auto py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
         >
           Delete Account
         </button>

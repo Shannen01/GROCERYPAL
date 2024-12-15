@@ -28,6 +28,7 @@ import VegetableIcon from '../assets/vegetable.png';
 import backIcon from '../assets/back.png';
 import deleteIcon from '../assets/delete.png';  // Make sure this file exists
 import shareIcon from '../assets/share.png';    // Make sure this file exists
+import moreIcon from '../assets/more.png';
 
 console.log('Category Images:', {
   FruitsIcon,
@@ -90,6 +91,267 @@ const CATEGORY_ICONS = {
   'Vegetable': VegetableIcon
 };
 
+const ConfirmDialog = ({ title, message, onConfirm, onCancel }) => {
+  return (
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={onCancel} />
+      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 bg-white rounded-2xl p-4 z-50 max-w-md mx-auto">
+        <h2 className="text-xl font-semibold mb-2">{title}</h2>
+        <p className="text-gray-600 mb-4">{message}</p>
+        <div className="flex justify-end gap-3">
+          <button 
+            onClick={onCancel}
+            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={onConfirm}
+            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </>
+  );
+};
+
+const ShareModal = ({ onClose, list }) => {
+  const [email, setEmail] = useState('');
+  const [isSharing, setIsSharing] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSend = async () => {
+    if (!email) {
+      setError('Please enter an email address');
+      return;
+    }
+
+    setIsSharing(true);
+    setError('');
+
+    try {
+      const token = localStorage.getItem('userToken');
+      
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        setError('Please enter a valid email address');
+        setIsSharing(false);
+        return;
+      }
+
+      const response = await axios.post(`/api/lists/${list._id}/share`, {
+        recipientEmail: email
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.data && response.data.success) {
+        toast.success(`List "${list.title}" shared successfully with ${email}`);
+        onClose();
+      } else {
+        throw new Error(response.data.message || 'Unknown error occurred');
+      }
+    } catch (error) {
+      console.error('Full share list error details:', error);
+
+      if (error.response) {
+        const errorMessage = error.response.data.message || 
+                             error.response.data.details?.message || 
+                             'Failed to share list';
+        
+        setError(errorMessage);
+      } else if (error.request) {
+        setError('No response received from server. Please check your connection.');
+      } else {
+        setError(error.message || 'An unexpected error occurred');
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={onClose} />
+      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 bg-white rounded-2xl p-4 z-50 max-w-md mx-auto">
+        <div className="flex justify-between items-center mb-2">
+          <h2 className="text-xl font-semibold">Share this list</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            ×
+          </button>
+        </div>
+
+        <p className="text-gray-600 text-sm mb-4">
+          Share this list with another GroceryPal user 🚀
+        </p>
+
+        <div className="relative mb-4">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+            </svg>
+          </div>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setError('');
+            }}
+            placeholder="Enter email address"
+            className={`w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg ${error ? 'border border-red-500' : ''}`}
+          />
+        </div>
+
+        {error && (
+          <div className="mb-4 text-sm text-red-500">
+            {error}
+          </div>
+        )}
+
+        <button
+          onClick={handleSend}
+          disabled={isSharing}
+          className={`w-full py-2 rounded-lg font-medium ${
+            isSharing 
+              ? 'bg-gray-400 text-white cursor-not-allowed'
+              : 'bg-[#CC0000] text-white hover:bg-[#FF0000]'
+          }`}
+        >
+          {isSharing ? 'Sharing...' : 'Share'}
+        </button>
+      </div>
+    </>
+  );
+};
+
+const ManageListModal = ({ onClose, list, onDelete }) => {
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [error, setError] = useState(null);
+
+  if (!list) return null;
+
+  const handleCopyList = () => {
+    const listName = (list?.name || list?.title || 'Unnamed List').toString().trim();
+    const listItems = list?.items || [];
+    const listCreatedAt = list?.createdAt || new Date().toISOString();
+
+    const listContent = `📋 ${listName}
+
+Items:
+${listItems.map((item, index) => {
+  const itemName = item.name || 'Unnamed Item';
+  const itemQuantity = item.quantity ? `Qty: ${item.quantity}` : '';
+  const itemChecked = item.checked ? '✅' : '☐';
+  
+  return `${itemChecked} ${index + 1}. ${itemName} ${itemQuantity}`.trim();
+}).join('\n')}
+
+Created: ${new Date(listCreatedAt).toLocaleDateString()}
+Total Items: ${listItems.length}`;
+
+    try {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(listContent)
+          .then(() => {
+            toast.success(`List "${listName}" copied successfully!`, {
+              position: "top-center",
+              autoClose: 2000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+            });
+            onClose();
+          })
+          .catch((err) => {
+            toast.error('Failed to copy list');
+          });
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = listContent;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        toast.success(`List "${listName}" copied successfully!`, {
+          position: "top-center",
+          autoClose: 2000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+        onClose();
+      }
+    } catch (err) {
+      toast.error('Failed to copy list');
+    }
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={onClose} />
+      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 bg-white rounded-2xl p-4 z-40 max-w-md mx-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Manage list</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            ×
+          </button>
+        </div>
+
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4">
+            {error}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <button 
+            className="w-full flex items-center gap-3 py-2 hover:bg-gray-50"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowShareModal(true);
+            }}
+          >
+            <span className="text-gray-400">👥</span>
+            <span>Share</span>
+          </button>
+          <button 
+            className="w-full flex items-center gap-3 py-2 hover:bg-gray-50"
+            onClick={handleCopyList}
+          >
+            <span className="text-gray-400">📋</span>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      {showShareModal && (
+        <div className="relative z-50">
+          <ShareModal 
+            onClose={() => {
+              setShowShareModal(false);
+              onClose();
+            }} 
+            list={list}
+          />
+        </div>
+      )}
+    </>
+  );
+};
+
 const AddItemsToListScreen = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -104,6 +366,7 @@ const AddItemsToListScreen = () => {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
+  const [showManageListModal, setShowManageListModal] = useState(false);
 
   useEffect(() => {
     // Log predefined categories at the top of the component
@@ -542,6 +805,17 @@ const AddItemsToListScreen = () => {
             />
           </button>
           <h1 className="text-[24px] font-bold text-white">{list?.title}</h1>
+          <div className="flex-1"></div>
+          <button 
+            onClick={() => setShowManageListModal(true)}
+            className="mr-2 bg-white/20 rounded-lg w-10 h-10 flex items-center justify-center"
+          >
+            <img 
+              src={shareIcon} 
+              alt="Manage List" 
+              className="w-6 h-6 object-contain"
+            />
+          </button>
         </div>
       </div>
 
@@ -822,6 +1096,13 @@ const AddItemsToListScreen = () => {
             </div>
           </div>
         </>
+      )}
+
+      {showManageListModal && (
+        <ManageListModal 
+          list={list} 
+          onClose={() => setShowManageListModal(false)} 
+        />
       )}
     </div>
   );
